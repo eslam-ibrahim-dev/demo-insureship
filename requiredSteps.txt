@@ -1,0 +1,9 @@
+*********************************************************************
+To use Countries::getNames('en') in Claims Service you need to install the symfony/intl package using this command:
+composer require symfony/intl
+after installing, add this namespace 
+use Symfony\Component\Intl\Countries;
+
+ex:
+	$countries = Countries::getNames('en');
+*********************************************************************
