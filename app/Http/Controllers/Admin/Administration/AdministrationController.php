@@ -102,11 +102,11 @@ class AdministrationController extends Controller
      * @param \Illuminate\Http\Request $request
      * @return mixed|\Illuminate\Http\JsonResponse
      */
-    public function newAccountPage(Request $request){
-        $data = $request->all();
-        $returnedData = $this->administrationService->newAccountPage($data);
-        return $returnedData;
-    }
+    // public function newAccountPage(Request $request){
+    //     $data = $request->all();
+    //     $returnedData = $this->administrationService->newAccountPage($data);
+    //     return $returnedData;
+    // }
 
 
     /**
@@ -114,11 +114,11 @@ class AdministrationController extends Controller
      * @param \Illuminate\Http\Request $request
      * @return mixed|\Illuminate\Http\JsonResponse
      */
-    public function newAccountSubmit(Request $request){
-        $data = $request->all();
-        $returnedData = $this->administrationService->newAccountSubmit($data);
-        return $returnedData;
-    }
+    // public function newAccountSubmit(Request $request){
+    //     $data = $request->all();
+    //     $returnedData = $this->administrationService->newAccountSubmit($data);
+    //     return $returnedData;
+    // }
 
 
     /**

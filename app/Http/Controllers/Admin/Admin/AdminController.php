@@ -17,7 +17,6 @@ class AdminController extends Controller
       // Show the settings page data ex : settingsPage
     public function showSettings(Request $request)
     {
-<<<<<<< HEAD
       // dd(JWTAuth::user());
       $token = JWTAuth::getToken();
       $payload = JWTAuth::getPayload($token)->toArray();
@@ -25,9 +24,7 @@ class AdminController extends Controller
       dd($payload); // Check the payload for user ID (sub) and other details
         $user = $request->user();
         dd($user);
-=======
         $user = auth('admin')->user();
->>>>>>> 73fdc1a25b481c79b378b6764418744ce543aca4
         $returnedData = $this->adminServices->showSettings($user);
         return $returnedData;
     }

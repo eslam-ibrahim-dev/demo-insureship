@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ModuleController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\Bugs\BugsController;
@@ -15,25 +16,25 @@ use App\Http\Controllers\Admin\Superclient\SuperclientController;
 use App\Http\Controllers\Admin\Notification\NotificationController;
 use App\Http\Controllers\Admin\Documentation\DocumentationController;
 use App\Http\Controllers\Admin\Administration\AdministrationController;
-use App\Http\Controllers\Admin\Client\ClientController AS AdminClientController;
-use App\Http\Controllers\Admin\Order\OrderController AS AdminOrderController;
+use App\Http\Controllers\Admin\Client\ClientController as AdminClientController;
+use App\Http\Controllers\Admin\Order\OrderController as AdminOrderController;
 
 Route::group([
     'middleware' => 'api',
     'prefix' => 'auth'
 ], function ($router) {
-    Route::post('/register', [AuthController::class, 'register'])->name('register');
     Route::post('/login', [AuthController::class, 'login'])->name('login');
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/refresh', [AuthController::class, 'refresh']);
-    Route::post('/me', [AuthController::class, 'me']);
-
 });
 
 
 
 
-Route::middleware(['jwt.auth'])->group(function(){
+Route::middleware(['jwt.auth'])->group(function () {
+    Route::post('/register', [AuthController::class, 'register'])->name('register');
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/refresh', [AuthController::class, 'refresh']);
+    Route::get('/modules', [ModuleController::class, 'index']);
+    Route::post('/me', [AuthController::class, 'me']);
     Route::get('/admin/settings', [AdminController::class, 'showSettings']);
     Route::post('/admin/settings/submit', [AdminController::class, 'updateSettings']);
 
@@ -50,8 +51,6 @@ Route::middleware(['jwt.auth'])->group(function(){
         Route::get('/offers/{subclient_id}', [TestController::class, 'testOrderGetOffers']);
         Route::post('/submit', [TestController::class, 'testSubmit']);
     });
-
-
 });
 
 
@@ -177,7 +176,7 @@ Route::post('/unmatched_claim/convert/{claim_id}', [ClaimsController::class, 'un
     *   Superclient Controller
 */
 
-Route::prefix('superclient')->group(function() {
+Route::prefix('superclient')->group(function () {
     Route::get('/', [SuperclientController::class, 'indexPage'])->name('admin_superclient');
     Route::get('/superclients', [SuperclientController::class, 'listPage'])->name('admin_superclients_list');
     Route::get('/new', [SuperclientController::class, 'newPage'])->name('admin_superclient_new');

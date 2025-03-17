@@ -13,5 +13,5 @@ class AdminPermission extends Model
         'module',
         'created',
     ];
-    
+    public $timestamps = false;
 }
