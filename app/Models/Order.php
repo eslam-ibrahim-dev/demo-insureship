@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
-    protected $table = 'osis_order'; // If the table name doesn't follow convention
+    protected $table = 'osis_order';
 
     protected $fillable = [
         'client_id',
@@ -103,7 +103,8 @@ class Order extends Model
         'created',
         'updated',
     );
-
+    const CREATED_AT = 'created';
+    const UPDATED_AT = 'updated';
     public static $fields_static = array(
         'id',
         'client_id',
@@ -170,6 +171,14 @@ class Order extends Model
     public $db_table_extra = "osis_order_extra_info";
     public static $db_table_extra_static = "osis_order_extra_info";
 
+    public function subclient()
+    {
+        return $this->belongsTo(Subclient::class, 'subclient_id');
+    }
+    public function client()
+    {
+        return $this->belongsTo(Client::class, 'client_id');
+    }
     public $fields_extra = array(
         'id',
         'order_id',
@@ -273,18 +282,82 @@ class Order extends Model
             ->count();
     }
 
-    public function order_update(&$id, &$data)
+    public function getOrdersQuery(array $data)
     {
-        $updates_arr = [];
+        $query = Order::query()
+            ->select([
+                'clients.name as client_name',
+                'subclients.name as subclient_name',
+                'osis_order.*'
+            ])
+            ->join('osis_subclient as subclients', 'subclients.id', '=', 'osis_order.subclient_id')
+            ->join('osis_client as clients', 'clients.id', '=', 'subclients.client_id');
+
+        // Apply filters
+        // dd($query->toSql());
+        if (!empty($data['customer_name'])) {
+            $query->whereRaw('MATCH(osis_order.customer_name) AGAINST(?)', [$data['customer_name']]);
+        }
+
+        if (!empty($data['start_date'])) {
+            $query->where('osis_order.created', '>=', $data['start_date']);
+         
+        }
+
+        if (!empty($data['end_date'])) {
+            $query->where('osis_order.created', '<=', $data['end_date'] . ' 23:59:59');
+        }
+        // dd($query->get());
+
+        if (empty($data['include_test_entity'])) {
+            $query->where('subclients.is_test_account', '!=', 1)
+                ->where('clients.is_test_account', '!=', 1);
+        }
+
+        $fields = [
+            'id', 'client_id', 'subclient_id', 'merchant_id', 'customer_name',
+            'email', 'phone', 'shipping_address_1', 'shipping_address_2', 
+            'shipping_city', 'shipping_state', 'shipping_zip', 'shipping_country',
+            'billing_address_1', 'billing_address_2', 'billing_city',
+            'billing_state', 'billing_zip', 'billing_country', 'status'
+        ];
         foreach ($data as $key => $value) {
-            if (in_array($key, $this->fields)) {
-                $updates_arr[$key] = $value;
+            // dd($data);
+            // dd(in_array('status', $this->fields));
+            if (!empty($value) && in_array($key, $fields) && $key !== "customer_name") {
+                if ($key == "id") {
+                    $query->where(function ($q) use ($value) {
+                        $q->where('osis_order.id', $value)
+                            ->orWhere('osis_order.shipping_log_id', $value);
+                    });
+                } else {
+                    // dd('osis_order.' . $key);
+                    // dd($value);
+                    $query->where('osis_order.' . $key, $value);
+                }
             }
         }
-        DB::table('osis_order')->where('id', $id)->update($updates_arr);
+        // dd($query->toSql());
+        // dd($query->get());
+        // Handle admin level restrictions
+        if (!empty($data['alevel']) && $data['alevel'] == "Guest Admin" && !empty($data['admin_id'])) {
+            $query->whereIn('clients.client_id', function ($subquery) use ($data) {
+                $subquery->select('client_id')
+                    ->from('osis_admin_client')
+                    ->where('admin_id', $data['admin_id']);
+            });
+        }
+
+        // Apply sorting
+        if (!empty($data['sort_field'])) {
+            $direction = !empty($data['sort_direction']) ? $data['sort_direction'] : 'ASC';
+            $query->orderBy('osis_order.' . $data['sort_field'], $direction);
+        } else {
+            $query->orderBy('osis_order.id', 'DESC');
+        }
+        // dd($query->get());
+        return $query;
     }
-
-
     public function listSearch(array $data)
     {
         $query = DB::table('osis_order as a')

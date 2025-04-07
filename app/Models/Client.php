@@ -25,17 +25,17 @@ class Client extends Model
         'estimated_start_date', 'is_test_account', 'status', 'created', 'updated'
     );
 
-    public function getAllRecords(array $data = [])
+    public function getAllRecords($user)
     {
         $query = DB::table($this->table)->orderBy('name', 'asc');
-        if (!empty($data['alevel']) && $data['alevel'] === "Guest Admin" && !empty($data['admin_id']) && $data['admin_id'] > 0) {
-            $query->whereIn('id', function ($subQuery) use ($data) {
+        if (!empty($user->level) && $user->level === "Guest Admin" && !empty($user->id) && $user->id > 0) {
+            $query->whereIn('id', function ($subQuery) use ($user) {
                 $subQuery->select('client_id')
                     ->from('osis_admin_client')
-                    ->where('admin_id', $data['admin_id']);
+                    ->where('admin_id', $user->id);
             });
         }
-        return $query->get()->toArray();
+        return $query->get();
     }
 
 

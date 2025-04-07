@@ -13,9 +13,8 @@ class OrderController extends Controller
         $this->orderService = $orderService;
     }
 
-    public function ordersPage(Request $request , $parent_id = 0){
-        $request = $request->all();
-        $returnedData = $this->orderService->ordersPage($request , $parent_id);
+    public function getOrders( ){
+        $returnedData = $this->orderService->getOrders( );
         return $returnedData;
     }
 
@@ -54,10 +53,14 @@ class OrderController extends Controller
         $returnedData = $this->orderService->ordersExportSubmit($data);
         return $returnedData;
     }
-
     public function ordersImportPage(Request $request){
-        $data = $request->all();
-        $returnedData = $this->orderService->ordersImportPage($data);
+        $request->validate([
+            'file' => 'required|mimes:xlsx,csv,txt',
+            'client_id' => 'required|integer',
+            'subclient_id' => 'required|integer',
+            'send_emails' => 'required|string'
+        ]);
+        $returnedData = $this->orderService->ordersImportPage($request);
         return $returnedData;
     }
 
@@ -70,6 +73,11 @@ class OrderController extends Controller
     public function ordersImportSubmit(Request $request , $client_id , $subclient_id , $send_emails , $backdate){
         $data = $request->all();
         $returnedData = $this->orderService->ordersImportSubmit($data , $client_id , $subclient_id , $send_emails , $backdate);
+        return $returnedData;
+    }
+    public function importOrders(Request $request ){
+        $data = $request->all();
+        $returnedData = $this->orderService->importOrders($data );
         return $returnedData;
     }
 
