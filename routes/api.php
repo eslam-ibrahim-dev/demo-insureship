@@ -35,7 +35,7 @@ Route::middleware(['jwt.auth'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
     Route::get('/modules', [ModuleController::class, 'index']);
-    Route::post('/me', [AuthController::class, 'me']);
+    Route::get('/me', [AuthController::class, 'me']);
     Route::get('/admin/settings', [AdminController::class, 'showSettings']);
     Route::get('/admin/{id}', [AdminController::class, 'showAdmin']);
     Route::get('/admins', [AdminController::class, 'getAdmins']);

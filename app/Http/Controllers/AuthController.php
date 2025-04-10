@@ -89,9 +89,9 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string',
             'email' => 'required|email|unique:osis_admin,email,' . $id,
-            'username' => 'required|string|unique:osis_admin,username,' . $id, 
+            'username' => 'required|string|unique:osis_admin,username,' . $id,
             'level' => 'required|string',
-            'password' => 'nullable|confirmed', 
+            'password' => 'nullable|confirmed',
             'dashboard' => 'nullable|string',
             'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'permissions' => 'required|array',
@@ -126,10 +126,10 @@ class AuthController extends Controller
                 $admin->profile_picture = $image;
             }
 
-            $admin->save(); 
+            $admin->save();
 
-            
-            $admin->permissions()->delete(); 
+
+            $admin->permissions()->delete();
 
             foreach ($request->permissions as $moduleName) {
                 AdminPermission::create([
@@ -143,7 +143,7 @@ class AuthController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Admin updated successfully',
-                'admin' => $admin->load('permissions'), 
+                'admin' => $admin->load('permissions'),
             ], 200);
         } catch (\Exception $e) {
             DB::rollback();
@@ -211,7 +211,7 @@ class AuthController extends Controller
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
-                
+
                 'status' => 'error',
                 'message' => 'An error occurred during login',
                 'error' => $e->getMessage(),
@@ -237,7 +237,10 @@ class AuthController extends Controller
             }
 
             $userId = $decoded['sub'];
-            $user = Admin::find($userId);  // Assuming Admin model for the authenticated user
+            $user = Admin::with(['permissions' => function ($query) {
+                // Select only the 'admin_id' and 'module' columns from the permissions table
+                $query->select('admin_id', 'module');
+            }])->find($userId);  // Assuming Admin model for the authenticated user
 
             // Debug: Check if the user is found
             if (!$user) {

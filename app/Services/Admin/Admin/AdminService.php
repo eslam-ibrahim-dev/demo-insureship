@@ -20,7 +20,9 @@ class AdminService
 
     public function findAdminById($id)
     {
-        $admin = Admin::find($id);
+        $admin = Admin::with(['permissions' => function ($query) {
+            $query->select('admin_id', 'module');
+        }])->find($id);
         if (!$admin) {
             return null;
         }
@@ -28,7 +30,9 @@ class AdminService
     }
     public function getAllAdmins()
     {
-        $admins = Admin::with('permissions')->paginate(15);
+        $admins = Admin::with(['permissions' => function ($query) {
+            $query->select('admin_id', 'module');
+        }])->paginate(15);
 
         return response()->json([
             'status' => 'success',

@@ -48,7 +48,7 @@ class AdminController extends Controller
 
       return response()->json([
         'status' => 'success',
-        'admin' => $admin->load('permissions'),
+        'admin' => $admin,
       ], 200);
     } catch (\Exception $e) {
       return response()->json([
