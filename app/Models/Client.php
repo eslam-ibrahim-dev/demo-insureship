@@ -11,18 +11,58 @@ class Client extends Model
 
     protected $table = 'osis_client'; // database name
     protected $fillable = [
-        'id', 'superclient_id', 'name', 'domain', 'referral_id', 'apikey',
-        'username', 'password', 'salt', 'webhooks_enabled',
-        'distributor_id', 'll_customer_id', 'll_api_policy', 'll_key',
-        'category', 'start_date', 'parcel_limit', 'email_timeout', 'has_ftp', 'website',
-        'estimated_start_date', 'is_test_account', 'status', 'created', 'updated'
+        'id',
+        'superclient_id',
+        'name',
+        'domain',
+        'referral_id',
+        'apikey',
+        'username',
+        'password',
+        'salt',
+        'webhooks_enabled',
+        'distributor_id',
+        'll_customer_id',
+        'll_api_policy',
+        'll_key',
+        'category',
+        'start_date',
+        'parcel_limit',
+        'email_timeout',
+        'has_ftp',
+        'website',
+        'estimated_start_date',
+        'is_test_account',
+        'status',
+        'created',
+        'updated'
     ];
     public static $fields_static = array(
-        'id', 'superclient_id', 'name', 'domain', 'referral_id', 'apikey',
-        'username', 'password', 'salt', 'webhooks_enabled',
-        'distributor_id', 'll_customer_id', 'll_api_policy', 'll_key',
-        'category', 'start_date', 'parcel_limit', 'email_timeout', 'has_ftp', 'website',
-        'estimated_start_date', 'is_test_account', 'status', 'created', 'updated'
+        'id',
+        'superclient_id',
+        'name',
+        'domain',
+        'referral_id',
+        'apikey',
+        'username',
+        'password',
+        'salt',
+        'webhooks_enabled',
+        'distributor_id',
+        'll_customer_id',
+        'll_api_policy',
+        'll_key',
+        'category',
+        'start_date',
+        'parcel_limit',
+        'email_timeout',
+        'has_ftp',
+        'website',
+        'estimated_start_date',
+        'is_test_account',
+        'status',
+        'created',
+        'updated'
     );
 
     public function getAllRecords($user)
@@ -41,8 +81,25 @@ class Client extends Model
 
     public function client_model_save(&$data)
     {
-        $fields = ['account_type', 'account_id', 'contact_type', 'is_customer_service', 'name', 'company', 'email', 'phone', 
-                'address1', 'address2', 'city', 'state', 'zip', 'country', 'website', 'created', 'updated'];
+        $fields = [
+            'account_type',
+            'account_id',
+            'contact_type',
+            'is_customer_service',
+            'name',
+            'company',
+            'email',
+            'phone',
+            'address1',
+            'address2',
+            'city',
+            'state',
+            'zip',
+            'country',
+            'website',
+            'created',
+            'updated'
+        ];
 
         $insert_vals = [];
         foreach ($data as $key => $value) {
@@ -154,8 +211,8 @@ class Client extends Model
     public function api_key_exists($api_key)
     {
         $exists = DB::table('osis_client')
-                    ->where('apikey', $api_key)
-                    ->exists();
+            ->where('apikey', $api_key)
+            ->exists();
 
         return $exists ? 1 : 0;
     }
@@ -164,8 +221,8 @@ class Client extends Model
     {
         $exists = DB::table('osis_client_policy_file')->where('client_id', $clientId)->exists();
 
-        $data['file_contents'] = $data['file_type'] === 'txt' 
-            ? $data['txt_file_contents'] 
+        $data['file_contents'] = $data['file_type'] === 'txt'
+            ? $data['txt_file_contents']
             : $data['html_file_contents'];
 
         if ($exists) {
@@ -191,5 +248,10 @@ class Client extends Model
         }
         $filePath = __DIR__ . '/../../../web/policies/' . $data['filename'] . '.' . $data['file_type'];
         file_put_contents($filePath, $data['file_contents']);
+    }
+
+    public function subclients()
+    {
+        return $this->hasMany(Subclient::class);
     }
 }

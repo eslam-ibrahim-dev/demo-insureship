@@ -26,7 +26,6 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-
         $validator = Validator::make($request->all(), [
             'name' => 'required|string',
             'email' => 'required|email|unique:osis_admin,email',
@@ -60,14 +59,10 @@ class AuthController extends Controller
             ]);
 
             foreach ($request->permissions as $moduleName) {
-                $permission = AdminPermission::create([
+                AdminPermission::create([
                     'admin_id' => $admin->id,
                     'module' => $moduleName
                 ]);
-
-                if (!$permission) {
-                    throw new \Exception("Failed to assign permissions.");
-                }
             }
 
             DB::commit();
@@ -75,8 +70,7 @@ class AuthController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Admin registered successfully',
-                'admin' => $admin,
-                'permissions' => $admin->permissions
+                'admin' => $admin->load('permissions'),
             ], 201);
         } catch (\Exception $e) {
             DB::rollback();
@@ -84,6 +78,79 @@ class AuthController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Admin registration failed',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
+    public function update(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string',
+            'email' => 'required|email|unique:osis_admin,email,' . $id,
+            'username' => 'required|string|unique:osis_admin,username,' . $id, 
+            'level' => 'required|string',
+            'password' => 'nullable|confirmed', 
+            'dashboard' => 'nullable|string',
+            'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'permissions' => 'required|array',
+            'permissions.*' => 'string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Find the admin by ID
+            $admin = Admin::findOrFail($id);
+
+            // Update admin information
+            $admin->name = $request->name;
+            $admin->email = $request->email;
+            $admin->username = $request->username;
+            $admin->level = $request->level;
+            $admin->dashboard = $request->dashboard;
+
+            // If password is provided, update it
+            if ($request->has('password')) {
+                $admin->password = bcrypt($request->password);
+            }
+
+            // If a profile picture is uploaded, store it
+            if ($request->hasFile('profile_picture')) {
+                $image = $request->file('profile_picture')->store('images', 'public');
+                $admin->profile_picture = $image;
+            }
+
+            $admin->save(); 
+
+            
+            $admin->permissions()->delete(); 
+
+            foreach ($request->permissions as $moduleName) {
+                AdminPermission::create([
+                    'admin_id' => $admin->id,
+                    'module' => $moduleName
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Admin updated successfully',
+                'admin' => $admin->load('permissions'), 
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollback();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Admin update failed',
                 'error' => $e->getMessage(),
             ], 500);
         }
@@ -144,6 +211,7 @@ class AuthController extends Controller
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
+                
                 'status' => 'error',
                 'message' => 'An error occurred during login',
                 'error' => $e->getMessage(),

@@ -31,11 +31,14 @@ Route::group([
 
 Route::middleware(['jwt.auth'])->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->name('register');
+    Route::post('/updateAdmin/{id}', [AuthController::class, 'update'])->name('register');
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
     Route::get('/modules', [ModuleController::class, 'index']);
     Route::post('/me', [AuthController::class, 'me']);
     Route::get('/admin/settings', [AdminController::class, 'showSettings']);
+    Route::get('/admin/{id}', [AdminController::class, 'showAdmin']);
+    Route::get('/admins', [AdminController::class, 'getAdmins']);
     Route::post('/admin/settings/submit', [AdminController::class, 'updateSettings']);
 
 
@@ -215,7 +218,7 @@ Route::middleware(['jwt.auth'])->group(function () {
 
 
     /* Admin Client controller */
-    Route::get('/client', [AdminClientController::class, 'indexPage'])->name('admin_client');
+    Route::get('/client', [AdminClientController::class, 'getClients']);
     Route::get('/clients', [AdminClientController::class, 'listPage'])->name('admin_clients_list');
     Route::get('/clients/outstanding', [AdminClientController::class, 'listOutstandingPage'])->name('admin_clients_list_outstanding');
     Route::get('/client/new', [AdminClientController::class, 'newPage'])->name('admin_client_new');
@@ -265,16 +268,12 @@ Route::middleware(['jwt.auth'])->group(function () {
     Route::controller(AdminOrderController::class)->group(function () {
         Route::get('/orders', 'getOrders')->name('admin_orders_list');
         Route::get('/orders/refine', 'ordersRefine')->name('admin_orders_list_refine');
-        Route::get('/orders/deactivate/{order_id}', 'orderDeactivate')->name('admin_orders_list_deactivate');
-        Route::get('/orders/activate/{order_id}', 'orderActivate')->name('admin_orders_list_activate');
+        Route::post('/orders/update-status/{order_id}', 'updateOrderStatus')->name('admin_orders_update_status');
+        Route::get('/orders/detail/{order_id}', 'orderDetailPage');
         Route::get('/orders/transaction/refund/{transaction_id}', 'transactionRefund')->name('admin_orders_transaction_refund');
 
-        Route::get('/orders/export', 'ordersExportPage')->name('admin_orders_export');
-        // Route::post('/orders/export/submit', 'ordersExportSubmit')->name('admin_orders_export_submit');
         Route::post('/orders/export', 'ordersExportSubmit')->name('orders.export');
-        Route::get('/orders/import', 'ordersImportPage')->name('admin_orders_import');
         Route::get('/orders/import/get-subclients/{client_id}', 'ordersImportGetSubclients')->name('admin_orders_import_get_subclients');
-        Route::post('/orders/import/submit/{client_id}/{subclient_id}/{send_emails}/{backdate}', 'ordersImportSubmit')->name('admin_orders_import_submit');
         Route::post('/orders/import',  'importOrders');
 
         Route::get('/orders/subclient/{parent_id}', 'ordersPage')->name('admin_orders_subclient_list');
@@ -283,7 +282,6 @@ Route::middleware(['jwt.auth'])->group(function () {
         Route::get('/orders/client/{parent_id}', 'ordersPage')->name('admin_orders_client_list');
         Route::get('/orders/client/{parent_id}/refine', 'ordersRefine')->name('admin_orders_client_list_refine');
 
-        Route::get('/orders/detail/{order_id}', 'orderDetailPage')->name('admin_order_detail');
         Route::post('/orders/detail/{order_id}/add_note', 'addNote')->name('admin_order_detail_add_note');
         Route::delete('/orders/detail/{note_id}/delete_note', 'deleteNote')->name('admin_order_detail_delete_note');
         Route::post('/orders/sendEmail/{order_id}', 'sendEmail')->name('admin_order_send_email');

@@ -73,29 +73,21 @@ class OrderService
     }
 
 
-    public function orderActivate($data, $order_id)
+    public function updateOrderStatus($status, $order_id)
     {
         $order = Order::findOrFail($order_id);
 
-        $order->update([
-            'status' => 'active',
+        $updateData = [
+            'status' => $status,
             'test_flag' => 0,
-            'void_date' => null,
-        ]);
-        return response()->json(['message' => 'Order Activaed Successfully'], 200);
-    }
+            'void_date' => $status === 'inactive' ? now() : null,
+        ];
 
+        $order->update($updateData);
 
-    public function orderDeactivate($data, $order_id)
-    {
-        $order = Order::findOrFail($order_id);
-
-        $order->update([
-            'status' => 'inactive',
-            'test_flag' => 0,
-            'void_date' => now(),
-        ]);
-        return response()->json(['message' => 'Order Deactivaed Successfully'], 200);
+        return response()->json([
+            'message' => "Order " . ucfirst($status) . "d Successfully"
+        ], 200);
     }
 
 
@@ -121,18 +113,6 @@ class OrderService
                 return response()->json(['message' => 'Success'], 200);
             }
         }
-    }
-
-
-
-    public function ordersExportPage($data)
-    {
-        $user = auth('admin')->user();
-        $clientModel = new Client();
-        $subclientModel = new Subclient();
-        $data['clients'] = $clientModel->getAllRecords($user);
-        $data['subclients'] = $subclientModel->getAllRecords($user);
-        return response()->json(['data' => $data], 200);
     }
 
 
@@ -167,68 +147,6 @@ class OrderService
             'message' => 'Export successful'
         ]);
     }
-    // public function ordersExportSubmit($data)
-    // {
-    //     $user = auth('admin')->user();
-    //     $data['alevel'] = $user->level;
-    //     $data['admin_id'] = $user->id;
-    //     if (!empty($data['subclient_id']) && $data['subclient_id'] <= 0) {
-    //         unset($data['subclient_id']);
-    //     }
-    //     if (!empty($data['client_id']) && $data['client_id'] <= 0) {
-    //         unset($data['client_id']);
-    //     }
-    //     $orderModel = new Order();
-    //     $orders = $orderModel->listSearch($data);
-    //     $filename = $data['start_date'] . "-" . $data['end_date'];
-    //     $directory = __DIR__ . '/../../../files/order_export/';
-    //     $handle = fopen($directory . $filename . '.csv', 'w');
-
-    //     $header = "Client,Subclient,Policy ID,Client ID,Subclient ID,Merchant ID, Merchant Name,Customer Name,Email,Phone,Shipping Address 1,Shipping Address 2,Shipping City,Shipping State,Shipping Zip,Shipping Country,Billing Address 1,Billing Address 2,Billing City,Billing State,Billing Zip,Billing Country,Order Number,Items Ordered,Order Total,Subtotal,Currency,Coverage Amount,Carrier,Tracking Number,Order Date,Ship Date,Source,Void Date,Campaign ID,Status,Created,Updated\r\n";
-    //     fwrite($handle, $header);
-
-    //     foreach ($orders as $order) {
-    //         unset($order['client_offer_id']);
-    //         unset($order['order_key']);
-    //         unset($order['email_status']);
-    //         unset($order['email_time']);
-    //         unset($order['register_date']);
-    //         unset($order['shipping_amount']);
-    //         unset($order['shipping_log_id']);
-    //         unset($order['firstname']);
-    //         unset($order['lastname']);
-    //         unset($order['test_flag']);
-
-    //         $order['items_ordered'] = htmlentities($order['items_ordered']);
-
-    //         foreach ($order as $key => $column) {
-    //             $cleaned = addslashes($column);
-    //             $cleaned = preg_replace('/[\r\n]/', '', $cleaned);
-
-    //             $order[$key] = $cleaned;
-    //         }
-
-    //         $line = "\"" . implode("\",\"", $order) . "\"\r\n";
-    //         fwrite($handle, $line);
-    //     }
-
-    //     fclose($handle);
-    //     return response()->json(['filename' => $filename], 200);
-    // }
-
-
-
-    public function ordersImportPage($data)
-    {
-        $user = auth('admin')->user();
-        $clientModel = new Client();
-        $subclientModel = new Subclient();
-        $data['clients'] = $clientModel->getAllRecords($user);
-        $data['subclients'] = $subclientModel->getAllRecords($user);
-        return response()->json(['data' => $data], 200);
-    }
-
-
     public function ordersImportGetSubclients($data, $client_id)
     {
         $user = auth('admin')->user();
@@ -240,7 +158,6 @@ class OrderService
 
     public function importOrders($data)
     {
-        // dd($data['file']);
         $file = $data['file'];
         $clientId = $data['client_id'];
         $subclientId = $data['subclient_id'];
@@ -269,152 +186,6 @@ class OrderService
         return response()->json(['status' => 'Import completed']);
     }
 
-    public function ordersImportSubmit($data, $client_id, $subclient_id, $send_emails, $backdate)
-    {
-        $user = auth('admin')->user();
-        $data['alevel'] = $user->level;
-        $data['admin_id'] = $user->id;
-        $offers = DB::table('osis_offer as a')
-            ->join('osis_client_offer as b', 'a.id', '=', 'b.offer_id')
-            ->select('a.*', 'b.id as subclient_offer_id', 'b.terms as subclient_terms', 'b.offer_id as main_offer_id')
-            ->where('b.subclient_id', $subclient_id)
-            ->get()->toArray();
-        $email_timeout = DB::table('osis_subclient')
-            ->where('id', $subclient_id)
-            ->pluck('email_timeout')
-            ->toArray();
-        $i = 0;
-        try {
-            $temp = uniqid();
-            $file_name = "ClientId-" . $client_id . '_SubclientId-' . $subclient_id . '_' . date('mdy') . '_' . $temp;
-            $file_name = $file_name . substr($_SERVER['HTTP_X_FILE_NAME'], -5);
-            $temp = explode(".", $file_name);
-            $ext = array_pop($temp);
-            $file_name = implode("-", $temp) . "." . $ext;
-
-            file_put_contents(__DIR__ . '/../../../files/order_import/' . $file_name, file_get_contents("php://input"));
-
-            $filename = __DIR__ . '/../../../files/order_import/' . $file_name;
-
-            if ($email_timeout >= 0 && $send_emails == "Yes") {
-                $email_status = "pending";
-                $email_time = date("Y-m-d H:i:s", strtotime("+$email_timeout minutes"));
-            } else {
-                $email_status = "do_not_send";
-                $email_time = null;
-            }
-
-            $csv = Reader::createFromPath($filename, 'r');
-            $csv->setHeaderOffset(0); //set the CSV header offset
-
-            $input_bom = $csv->getInputBOM();
-
-            if ($input_bom === ByteSequence::BOM_UTF16_LE) {
-
-                $encoder = (new CharsetConverter())
-                    ->inputEncoding('utf-16le')
-                    ->outputEncoding('utf-8');
-                $records = $encoder->convert($csv);
-            } elseif ($input_bom === ByteSequence::BOM_UTF16_BE) {
-
-                $encoder = (new CharsetConverter())
-                    ->inputEncoding('utf-16be')
-                    ->outputEncoding('utf-8');
-                $records = $encoder->convert($csv);
-            } else {
-                $records = $csv->getRecords();
-            }
-
-            $records_count = iterator_count($records);
-
-            foreach ($records as $offset => $record) {
-
-
-                if (strlen(implode('', $record)) <= 0) {
-                    continue;
-                }
-
-                if (!isset($record['order_date']) || (isset($record['order_date']) && empty(trim($record['order_date'])))) {
-                    $record['order_date'] = date('Y-m-d');
-                }
-
-                if (!empty($record['order_date'])) {
-                    $temp = strtotime($record['order_date']);
-                    $record['order_date'] = date("Y-m-d", $temp);
-                }
-
-                $record['client_id']    = $client_id;
-                $record['subclient_id'] = $subclient_id;
-                $record['email_status'] = $email_status;
-                $record['email_time']   = $email_time;
-                $record['source']       = "Admin Import";
-
-                $date_fields = [
-                    'order_date',
-                    'ship_date',
-                ];
-
-                foreach ($date_fields as $field) {
-                    if (isset($record[$field]) && !empty($record[$field])) {
-                        $date = new \DateTimeImmutable($record[$field]);
-                        $modified = $date->format('Y-m-d H:i:s');
-
-                        if ($modified !== $record[$field]) {
-                            $record[$field] = $modified;
-                        }
-                    }
-                }
-
-                $dollar_fields = [
-                    'coverage_amount',
-                    'subtotal',
-                    'shipping_amount',
-                ];
-
-                foreach ($dollar_fields as $field) {
-                    if (isset($record[$field]) && empty($record[$field])) {
-                        $record[$field] = "0";
-                    }
-                }
-
-                $length_fields = [
-                    'order_number'  => '45',
-                    'customer_name' => '45',
-                    'firstname'     => '45',
-                    'lastname'      => '45',
-                    'email'         => '45',
-                    'billing_city'  => '45',
-                    'shipping_city' => '45',
-                ];
-
-                foreach ($length_fields as $field => $length) {
-                    if (isset($record[$field]) && !empty($record[$field])) {
-                        if (strlen($record[$field]) > $length) {
-                            $record[$field] = substr($record[$field], 0, $length);
-                        }
-                    }
-                }
-
-                $order_id = Order::create($record);
-
-                foreach ($offers as $offer) {
-                    $offerModel = new Offer();
-                    $offerModel->add_offer_to_order($offer['id'], $order_id, $record['subclient_id']);
-                }
-
-                if ($backdate == "Yes" && !empty($record['order_date'])) {
-                    $params = array('created' => $record['order_date']);
-                    $orderModel = new Order();
-                    $orderModel->order_update($order_id, $params);
-                }
-
-                $i++;
-            }
-        } catch (Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 400);
-        }
-        return response()->json(['status' => $i, 'record(s) imported'], 200);
-    }
 
 
     public function testQueuePage($data, $entity_type, $entity_id)
@@ -463,9 +234,9 @@ class OrderService
                 ->get()->toArray();
         }
         $clientModel = new Client();
-        $data['clients'] = $clientModel->getAllRecords();
+        $data['clients'] = $clientModel->getAllRecords($user);
         $subclientModel = new Subclient();
-        $data['subclients'] = $subclientModel->getAllRecords();
+        $data['subclients'] = $subclientModel->getAllRecords($user);
         return response()->json(['data' => $data], 200);
     }
 

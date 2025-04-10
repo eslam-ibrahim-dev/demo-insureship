@@ -14,9 +14,9 @@ class ClientController extends Controller
         $this->clientService = $clientService;
     }
 
-    public function indexPage(Request $request){
+    public function getClients(Request $request){
         $data = $request->all();
-        $returnedData = $this->clientService->indexPage($data);
+        $returnedData = $this->clientService->getClients($data);
         return $returnedData;
     }
 

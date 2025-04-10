@@ -301,6 +301,10 @@ class SubClient extends Model
     }
 
 
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
     public function api_key_exists($api_key)
     {
         $result = DB::table('osis_subclient')
