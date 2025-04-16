@@ -20,10 +20,10 @@ class OrderController extends Controller
         return $returnedData;
     }
 
-    public function ordersRefine(Request $request, $parent_id = 0)
+    public function ordersRefine(Request $request)
     {
         $data = $request->all();
-        $returnedData = $this->orderService->ordersRefine($data, $parent_id);
+        $returnedData = $this->orderService->ordersRefine($data);
         return $returnedData;
     }
 
@@ -51,13 +51,6 @@ class OrderController extends Controller
         return $returnedData;
     }
 
-    public function ordersImportGetSubclients(Request $request, $client_id)
-    {
-        $data = $request->all();
-        $returnedData = $this->orderService->ordersImportGetSubclients($data, $client_id);
-        return $returnedData;
-    }
-
     public function importOrders(Request $request)
     {
         $data = $request->validate([
@@ -70,10 +63,10 @@ class OrderController extends Controller
         return $returnedData;
     }
 
-    public function testQueuePage(Request $request, $entity_type = "", $entity_id = 0)
+    public function testQueuePage(Request $request)
     {
         $data = $request->all();
-        $returnedData = $this->orderService->testQueuePage($data, $entity_type, $entity_id);
+        $returnedData = $this->orderService->testQueuePage($data);
         return $returnedData;
     }
 
@@ -81,13 +74,6 @@ class OrderController extends Controller
     {
         $data = $request->all();
         $returnedData = $this->orderService->orderDetailPage($data, $order_id);
-        return $returnedData;
-    }
-
-    public function orderUpdate(Request $request, $order_id)
-    {
-        $data = $request->all();
-        $returnedData = $this->orderService->orderUpdate($data, $order_id);
         return $returnedData;
     }
 
@@ -106,10 +92,9 @@ class OrderController extends Controller
     }
 
 
-    public function deleteNote(Request $request, $note_id)
+    public function deleteNote( $note_id)
     {
-        $data = $request->all();
-        $returnedData = $this->orderService->deleteNote($data, $note_id);
+        $returnedData = $this->orderService->deleteNote( $note_id);
         return $returnedData;
     }
 }

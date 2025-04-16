@@ -266,27 +266,19 @@ Route::middleware(['jwt.auth'])->group(function () {
 */
 
     Route::controller(AdminOrderController::class)->group(function () {
-        Route::get('/orders', 'getOrders')->name('admin_orders_list');
-        Route::get('/orders/refine', 'ordersRefine')->name('admin_orders_list_refine');
-        Route::post('/orders/update-status/{order_id}', 'updateOrderStatus')->name('admin_orders_update_status');
+        Route::get('/orders', 'getOrders');
+        Route::get('/orders/search', 'ordersRefine');
+        Route::post('/orders/update-status/{order_id}', 'updateOrderStatus');
         Route::get('/orders/detail/{order_id}', 'orderDetailPage');
-        Route::get('/orders/transaction/refund/{transaction_id}', 'transactionRefund')->name('admin_orders_transaction_refund');
+        Route::get('/orders/transaction/refund/{transaction_id}', 'transactionRefund');
 
-        Route::post('/orders/export', 'ordersExportSubmit')->name('orders.export');
-        Route::get('/orders/import/get-subclients/{client_id}', 'ordersImportGetSubclients')->name('admin_orders_import_get_subclients');
+        Route::post('/orders/export', 'ordersExportSubmit');
         Route::post('/orders/import',  'importOrders');
 
-        Route::get('/orders/subclient/{parent_id}', 'ordersPage')->name('admin_orders_subclient_list');
-        Route::get('/orders/subclient/{parent_id}/refine', 'ordersRefine')->name('admin_orders_subclient_list_refine');
+        Route::post('/orders/detail/{order_id}/add_note', 'addNote');
+        Route::delete('/orders/detail/{note_id}/delete_note', 'deleteNote');
+        Route::post('/orders/sendEmail/{order_id}', 'sendEmail');
 
-        Route::get('/orders/client/{parent_id}', 'ordersPage')->name('admin_orders_client_list');
-        Route::get('/orders/client/{parent_id}/refine', 'ordersRefine')->name('admin_orders_client_list_refine');
-
-        Route::post('/orders/detail/{order_id}/add_note', 'addNote')->name('admin_order_detail_add_note');
-        Route::delete('/orders/detail/{note_id}/delete_note', 'deleteNote')->name('admin_order_detail_delete_note');
-        Route::post('/orders/sendEmail/{order_id}', 'sendEmail')->name('admin_order_send_email');
-
-        Route::get('/orders/test_queue', 'testQueuePage')->name('admin_orders_test_queue');
-        Route::get('/orders/test_queue/{entity_type}/{entity_id}', 'testQueuePage')->name('admin_orders_test_queue_entity');
+        Route::get('/orders/test_queue', 'testQueuePage');
     });
 });

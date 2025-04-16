@@ -254,4 +254,9 @@ class Client extends Model
     {
         return $this->hasMany(Subclient::class);
     }
+    public function contacts()
+    {
+        return $this->hasMany(Contact::class, 'account_id')
+            ->where('account_type', 'client');
+    }
 }

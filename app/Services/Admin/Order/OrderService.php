@@ -52,26 +52,42 @@ class OrderService
     }
 
 
-    public function ordersRefine($data, $parent_id)
+    public function ordersRefine($data)
     {
         $user = auth('admin')->user();
-        if (empty($data['limit'])) {
-            $data['limit'] = 30;
-        }
+
+        $data['limit'] = $data['limit'] ?? 30;
         $data['alevel'] = $user->level;
         $data['admin_id'] = $user->id;
-        $orderModel = new Order();
-        $orders = $orderModel->listSearch($data);
-        foreach ($orders as &$temp_order) {
-            if (DB::table('osis_transaction')->where('order_id', $temp_order['id'])->exists() ? 1 : 0) {
-                $temp_order['transactions'] = DB::table('osis_transaction')->where('order_id', $temp_order['id'])->orderBy('created', 'DESC')->get()->toArray();
-            }
-        }
-        $temp['orders'] = $orders;
-        $temp['count'] = $orderModel->listSearchCount($data);
-        return response()->json(['temp' => $temp], 200);
-    }
 
+        $orderModel = new Order();
+        $paginatedOrders = $orderModel->listSearch($data);
+        $orderItems = $paginatedOrders->items();
+
+        $orderIds = array_column($orderItems, 'id');
+
+        $transactions = DB::table('osis_transaction')
+            ->whereIn('order_id', $orderIds)
+            ->orderBy('created', 'DESC')
+            ->get()
+            ->groupBy('order_id');
+
+        foreach ($orderItems as &$order) {
+            $order->transactions = isset($transactions[$order->id])
+                ? $transactions[$order->id]->toArray()
+                : [];
+        }
+
+        return response()->json([
+            'orders' => $orderItems,
+            'meta' => [
+                'total' => $paginatedOrders->total(),
+                'current_page' => $paginatedOrders->currentPage(),
+                'per_page' => $paginatedOrders->perPage(),
+                'last_page' => $paginatedOrders->lastPage(),
+            ],
+        ]);
+    }
 
     public function updateOrderStatus($status, $order_id)
     {
@@ -147,14 +163,6 @@ class OrderService
             'message' => 'Export successful'
         ]);
     }
-    public function ordersImportGetSubclients($data, $client_id)
-    {
-        $user = auth('admin')->user();
-        $data['alevel'] = $user->level;
-        $data['admin_id'] = $user->id;
-        $subclients = DB::table('osis_subclient')->where('client_id', $client_id)->orderBy('name', 'asc')->get()->toArray();
-        return response()->json(['subclients' => $subclients], 200);
-    }
 
     public function importOrders($data)
     {
@@ -188,93 +196,57 @@ class OrderService
 
 
 
-    public function testQueuePage($data, $entity_type, $entity_id)
+    public function testQueuePage($data)
     {
         $user = auth('admin')->user();
-        $data['profile_picture'] = $user->profile_picture;
-        $data['user_name'] = $user->name;
-        $data['alevel'] = $user->level;
-        $data['admin_id'] = $user->id;
-        if ($data['alevel'] == "Guest Admin") {
+        if ($user->level == "Guest Admin") {
             return response()->json(['message' => 'Bad Credentials'], 400);
         }
-        if (!empty($entity_type) && !empty($entity_id)) {
+        $order = new Order();
+        if (!empty($data['entity_type']) && !empty($data['entity_id'])) {
             // either client or subclient
-            $data['entity_type'] = $entity_type;
-            $data['entity_id'] = $entity_id;
-
-            if ($entity_type == "client") {
-                $data['test_orders'] = DB::table('osis_order as a')
-                    ->join('osis_client as b', 'a.client_id', '=', 'b.id')
-                    ->join('osis_subclient as c', 'a.subclient_id', '=', 'c.id')
-                    ->where('a.test_flag', 1)
-                    ->where('a.status', 'active')
-                    ->where('a.client_id', $entity_id)
-                    ->select('a.*', 'b.name as client_name', 'c.name as subclient_name')
-                    ->get()->toArray();
-            } elseif ($entity_type == "subclient") {
-                $data['test_orders'] = DB::table('osis_order as a')
-                    ->join('osis_client as b', 'a.client_id', '=', 'b.id')
-                    ->join('osis_subclient as c', 'a.subclient_id', '=', 'c.id')
-                    ->where('a.test_flag', 1)
-                    ->where('a.status', 'active')
-                    ->where('a.subclient_id', $entity_id)
-                    ->select('a.*', 'b.name as client_name', 'c.name as subclient_name')
-                    ->get()->toArray();
+            if ($data['entity_type'] == "client") {
+                $data['test_orders'] = $order->getFlaggedByClientId( $data['entity_id']);
+            } elseif ($data['entity_type'] == "subclient") {
+                $data['test_orders'] = $order->getFlaggedBySubclientId( $data['entity_id']);
             } else {
                 return response()->json(['message' => null], 200);
             }
         } else {
-            $data['test_orders'] =  DB::table('osis_order as a')
-                ->join('osis_client as b', 'a.client_id', '=', 'b.id')
-                ->join('osis_subclient as c', 'a.subclient_id', '=', 'c.id')
-                ->where('a.test_flag', 1)
-                ->where('a.status', 'active')
-                ->select('a.*', 'b.name as client_name', 'c.name as subclient_name')
-                ->get()->toArray();
+            $data['test_orders'] = $order->getFlaggedAll();
         }
-        $clientModel = new Client();
-        $data['clients'] = $clientModel->getAllRecords($user);
-        $subclientModel = new Subclient();
-        $data['subclients'] = $subclientModel->getAllRecords($user);
-        return response()->json(['data' => $data], 200);
+
+        return response()->json( $data, 200);
     }
 
     public function orderDetailPage($data, $order_id)
     {
         $user = auth('admin')->user();
-        $data['profile_picture'] = $user->profile_picture;
-        $data['user_name'] = $user->name;
-        $data['alevel'] = $user->level;
-        $data['admin_id'] = $user->id;
-        if (DB::table('osis_transaction')->where('order_id', $order_id)->exists()) {
-            $data['transactions'] = DB::table('osis_transaction')->where('order_id', $order_id)->orderBy('created', 'DESC')->get()->toArray();
-        }
 
-        $data['order'] = (array) DB::table('osis_order')->where('id', $order_id)->first();
-        $data['offers'] = DB::table('osis_offer as a')
-            ->join('osis_order_offer as b', 'a.id', '=', 'b.offer_id')
-            ->select('a.name', 'b.terms', 'b.id as order_offer_id', 'b.claim_id', 'a.link_name')
-            ->where('b.order_id', $order_id)
-            ->get()->toArray();
-        $data['client'] = (array) DB::table('osis_client')->where('id', $data['order']['client_id'])->first();
-        $data['client_contacts'] = DB::table('osis_contact')->where('account_type', 'client')->where('account_id', $data['order']['subclient_id'])->orderBy('contact_type')->get()->toArray();
-        $data['subclient'] = (array) DB::table('osis_subclient')->where('id', $data['order']['subclient_id'])->first();
-        $data['subclient_contacts'] = DB::table('osis_contact')
-            ->where('account_type', 'subclient')
-            ->where('account_id', $data['order']['subclient_id'])
-            ->orderBy('contact_type')
-            ->orderBy('name', 'asc')
-            ->get()->toArray();
-        $emailLogModel = new EmailLog();
-        $data['emails'] = $emailLogModel->get_by_policy_id($order_id);
-        $data['notes'] = DB::table('osis_note as a')
-            ->leftJoin('osis_admin as b', 'a.admin_id', '=', 'b.id')
-            ->where('a.parent_type', 'order')
-            ->where('a.parent_id', $order_id)
-            ->orderBy('a.created', 'desc')
-            ->get()->toArray();
-        return response()->json(['data' => $data], 200);
+        $order = Order::with([
+            'client',
+            'subclient',
+            'offers',
+            'transactions',
+        ])->findOrFail($order_id);
+
+        $data = [
+            'profile_picture' => $user->profile_picture,
+            'user_name' => $user->name,
+            'alevel' => $user->level,
+            'admin_id' => $user->id,
+            'order' => $order,
+            'client_contacts' => $order->client?->contacts()->orderBy('contact_type')->get(),
+            'subclient_contacts' => $order->subclient?->contacts()->orderBy('contact_type')->get(),
+            'emails' => EmailLog::where('policy_id', $order_id)->get(),
+            'notes' => Note::where('parent_type', 'order')
+                ->where('parent_id', $order_id)
+                ->with('admin')  // Assuming 'admin' relationship exists in Note model
+                ->orderByDesc('created')
+                ->get()
+        ];
+
+        return response()->json($data, 200);
     }
 
 
@@ -289,12 +261,12 @@ class OrderService
 
     public function sendEmail($data, $order_id)
     {
-        $params = [
-            'email_status' => 'pending',
-            'email_time' => date('Y-m-d H:i:s'),
-        ];
-        $orderModel = new Order();
-        $orderModel->order_update($order_id, $params);
+        DB::table('osis_order')
+            ->where('id', $order_id)
+            ->update([
+                'email_status' => 'pending',
+                'email_time' => now(),
+            ]);
         return response()->json(['message' => 'Success'], 200);
     }
 
@@ -309,10 +281,9 @@ class OrderService
     }
 
 
-    public function deleteNote($data, $note_id)
+    public function deleteNote($note_id)
     {
-        $user = auth('admin')->user();
-        DB::table('osis_note')->where('id', $note_id)->delete();
+        Note::where('id', $note_id)->delete();
         return response()->json(['message' => 'Success'], 200);
     }
 }

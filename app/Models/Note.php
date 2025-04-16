@@ -10,7 +10,8 @@ class Note extends Model
     use HasFactory;
 
     protected $table = 'osis_note';
-
+    const CREATED_AT = 'created';
+    const UPDATED_AT = 'updated';
     protected $fillable = [
         'parent_type', 'parent_id', 'note_type', 'note', 'admin_id', 'created', 'updated'
     ];
@@ -18,6 +19,20 @@ class Note extends Model
     public static $fields_static = [
         'id', 'parent_type', 'parent_id', 'note_type', 'note', 'admin_id', 'created', 'updated'
     ];
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
+    }
+    public function admin()
+    {
+        return $this->belongsTo(Admin::class);
+    }
+
+    public function notes()
+    {
+        return $this->hasMany(Note::class);
+    }
 
     public static function get_by_parent($type, $id)
     {

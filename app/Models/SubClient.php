@@ -33,6 +33,11 @@ class SubClient extends Model
         'updated',
     ];
 
+    public function contacts()
+    {
+        return $this->hasMany(Contact::class, 'account_id')
+            ->where('account_type', 'subclient');
+    }
     public function getAdminDashboardReport($start_date = null, $end_date = null, $alevel = 'Admin', $admin_id = null)
     {
         $data = [];

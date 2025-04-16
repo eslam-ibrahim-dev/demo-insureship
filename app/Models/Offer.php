@@ -28,8 +28,6 @@ class Offer extends Model
         'created', 'updated'
     );
 
-    public $db_table = "osis_offer";
-    public static $db_table_static = "osis_offer";
     public function get_terms($offer_id)
     {
         $terms = DB::table('osis_offer')->where('id', $offer_id)->value('terms');

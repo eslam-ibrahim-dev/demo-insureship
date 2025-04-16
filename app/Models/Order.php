@@ -164,10 +164,6 @@ class Order extends Model
         // 'coverage_amount',
         'order_number',
     );
-
-    public $db_table = "osis_order";
-    public static $db_table_static = "osis_order";
-
     public $db_table_extra = "osis_order_extra_info";
     public static $db_table_extra_static = "osis_order_extra_info";
 
@@ -178,6 +174,21 @@ class Order extends Model
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');
+    }
+
+
+    public function offers()
+    {
+        return $this->belongsToMany(Offer::class, 'osis_order_offer', 'order_id', 'offer_id');
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+    public function notes()
+    {
+        return $this->hasMany(Note::class);
     }
     public $fields_extra = array(
         'id',
@@ -301,7 +312,6 @@ class Order extends Model
 
         if (!empty($data['start_date'])) {
             $query->where('osis_order.created', '>=', $data['start_date']);
-         
         }
 
         if (!empty($data['end_date'])) {
@@ -315,11 +325,26 @@ class Order extends Model
         }
 
         $fields = [
-            'id', 'client_id', 'subclient_id', 'merchant_id', 'customer_name',
-            'email', 'phone', 'shipping_address_1', 'shipping_address_2', 
-            'shipping_city', 'shipping_state', 'shipping_zip', 'shipping_country',
-            'billing_address_1', 'billing_address_2', 'billing_city',
-            'billing_state', 'billing_zip', 'billing_country', 'status'
+            'id',
+            'client_id',
+            'subclient_id',
+            'merchant_id',
+            'customer_name',
+            'email',
+            'phone',
+            'shipping_address_1',
+            'shipping_address_2',
+            'shipping_city',
+            'shipping_state',
+            'shipping_zip',
+            'shipping_country',
+            'billing_address_1',
+            'billing_address_2',
+            'billing_city',
+            'billing_state',
+            'billing_zip',
+            'billing_country',
+            'status'
         ];
         foreach ($data as $key => $value) {
             // dd($data);
@@ -358,6 +383,17 @@ class Order extends Model
         // dd($query->get());
         return $query;
     }
+
+
+    public $fields_search = array(
+        'id',
+        'client_id',
+        'subclient_id',
+        'email',
+        'order_number',
+        'tracking_number',
+        'status',
+    );
     public function listSearch(array $data)
     {
         $query = DB::table('osis_order as a')
@@ -374,104 +410,95 @@ class Order extends Model
         }
 
         if (!empty($data['end_date'])) {
-            $query->where('a.created', '<=', $data['end_date'] . " 23:59:59");
+            $query->where('a.created', '<=', $data['end_date'] . ' 23:59:59');
+        }
+        //Order number and id of the order and email and tracking number and status
+        if (!empty($data['include_test_entity'])) {
+            $query->where('b.is_test_account',  1)
+                ->where('c.is_test_account',  1);
         }
 
-        if (empty($data['include_test_entity'])) {
-            $query->where('b.is_test_account', '!=', 1)
-                ->where('c.is_test_account', '!=', 1);
-        }
-
-        if (!empty($data['alevel']) && $data['alevel'] == "Guest Admin" && !empty($data['admin_id']) && $data['admin_id'] > 0) {
-            $query->whereIn('b.client_id', function ($subQuery) use ($data) {
-                $subQuery->select('client_id')
-                    ->from('osis_admin_client')
-                    ->where('admin_id', $data['admin_id']);
+        if (!empty($data['alevel']) && $data['alevel'] === 'Guest Admin' && !empty($data['admin_id'])) {
+            $query->whereIn('b.client_id', function ($sub) use ($data) {
+                $sub->select('client_id')->from('osis_admin_client')->where('admin_id', $data['admin_id']);
             });
         }
 
-        foreach ($data as $key => $value) {
-            if (!empty($value) && in_array($key, $this->fields) && $key !== "customer_name") {
-                if ($key == "id") {
-                    $query->where(function ($subQuery) use ($value) {
-                        $subQuery->where('a.id', $value)
-                            ->orWhere('a.shipping_log_id', $value);
-                    });
-                } else {
-                    $query->where("a.$key", $value);
-                }
-            }
-        }
-
-        if (!empty($data['sort_field'])) {
-            $sortDirection = $data['sort_direction'] ?? 'ASC';
-            $query->orderBy("a.{$data['sort_field']}", $sortDirection);
-        } else {
-            $query->orderBy('a.id', 'DESC');
-        }
-
-        if (!empty($data['limit']) && $data['limit'] > 0) {
-            $page = $data['page'] ?? 1;
-            $offset = ($page - 1) * $data['limit'];
-            $query->limit($data['limit'])->offset($offset);
-        }
-
-        $forceParams = ['created', 'client', 'status'];
-        $forceCount = 0;
-
-        foreach ($forceParams as $param) {
-            if (stripos($query->toSql(), $param) !== false) {
-                $forceCount++;
-            }
-        }
-
-        if ($forceCount === count($forceParams)) {
-            $query->fromRaw('osis_order a FORCE INDEX (`created_client_subclient_status_idx`)');
-        }
-
-        return $query->get()->toArray();
-    }
-
-
-    public function listSearchCount($data)
-    {
-        $query = DB::table('osis_order as a')
-            ->selectRaw('COUNT(*) as myCount');
-
-        if (empty($data['include_test_entity'])) {
-            $query->join('osis_subclient as b', 'b.id', '=', 'a.subclient_id')
-                ->join('osis_client as c', 'c.id', '=', 'b.client_id')
-                ->where('b.is_test_account', '!=', 1)
-                ->where('c.is_test_account', '!=', 1);
-        }
-
-        if (!empty($data['alevel']) && $data['alevel'] == "Guest Admin" && !empty($data['admin_id']) && $data['admin_id'] > 0) {
-            $query->whereIn('b.client_id', function ($subQuery) use ($data) {
-                $subQuery->select('client_id')
-                    ->from('osis_admin_client')
-                    ->where('admin_id', $data['admin_id']);
-            });
-        }
-
-        if (!empty($data['customer_name'])) {
-            $query->whereRaw('MATCH(a.customer_name) AGAINST(?)', [$data['customer_name']]);
-        }
-
-        foreach ($data as $key => $value) {
-            if (!empty($value) && in_array($key, $this->fields) && $key !== "customer_name") {
+        $filterable = array_intersect_key($data, array_flip($this->fields_search));
+        foreach ($filterable as $key => $value) {
+            if ($key === 'id') {
+                $query->where(function ($q) use ($value) {
+                    $q->where('a.id', $value)->orWhere('a.shipping_log_id', $value);
+                });
+            } else {
                 $query->where("a.$key", $value);
             }
         }
+        $query->orderBy($data['sort_field'] ?? 'a.id', $data['sort_direction'] ?? 'DESC');
+        $perPage = $data['limit'] ?? 30;
+        $page = $data['page'] ?? 1;
+        return $query->paginate($perPage, ['*'], 'page', $page);
+    }
 
-        if (!empty($data['start_date'])) {
-            $query->where('a.created', '>=', $data['start_date']);
-        }
+    public function getFlaggedByClientId($clientId)
+    {
+        return DB::table('osis_order as a')
+            ->join('osis_client as b', 'a.client_id', '=', 'b.id')
+            ->join('osis_subclient as c', 'a.subclient_id', '=', 'c.id')
+            ->select(
+                'a.id',
+                'a.customer_name',
+                'a.email',
+                'a.shipping_address1',
+                'a.shipping_city',
+                'a.created',
+                'b.name as client_name',
+                'c.name as subclient_name'
+            )
+            ->where('a.test_flag', 1)
+            ->where('a.status', 'active')
+            ->where('a.client_id', $clientId)
+            ->paginate(15);
+    }
 
-        if (!empty($data['end_date'])) {
-            $query->where('a.created', '<=', $data['end_date'] . ' 23:59:59');
-        }
+    public function getFlaggedBySubclientId($subclient_id)
+    {
+        return DB::table('osis_order as a')
+            ->join('osis_client as b', 'a.client_id', '=', 'b.id')
+            ->join('osis_subclient as c', 'a.subclient_id', '=', 'c.id')
+            ->select(
+                'a.id',
+                'a.customer_name',
+                'a.email',
+                'a.shipping_address1',
+                'a.shipping_city',
+                'a.created',
+                'b.name as client_name',
+                'c.name as subclient_name'
+            )
+            ->where('a.test_flag', 1)
+            ->where('a.status', 'active')
+            ->where('a.subclient_id', $subclient_id)
+            ->paginate(15);
+    }
 
-        $result = $query->first();
-        return $result->myCount ?? 0;
+    public  function getFlaggedAll()
+    {
+        return DB::table('osis_order as a')
+            ->join('osis_client as b', 'a.client_id', '=', 'b.id')
+            ->join('osis_subclient as c', 'a.subclient_id', '=', 'c.id')
+            ->select(
+                'a.id',
+                'a.customer_name',
+                'a.email',
+                'a.shipping_address1',
+                'a.shipping_city',
+                'a.created',
+                'b.name as client_name',
+                'c.name as subclient_name'
+            )
+            ->where('a.test_flag', 1)
+            ->where('a.status', 'active')
+            ->paginate(15);
     }
 }
