@@ -5,9 +5,15 @@ namespace App\Models;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
+use Illuminate\Notifications\Notifiable;
 
-class ClientLogin extends Model
+class ClientLogin extends Authenticatable implements JWTSubject
 {
+
+    use Notifiable;
+
     protected $table = "osis_client_login";
     protected $fillable = [
         'id',
@@ -22,20 +28,6 @@ class ClientLogin extends Model
         'created',
         'updated',
     ];
-    public $fields = array(
-        'id', 'client_id', 'name', 'email',
-        'username', 'password', 'salt',
-        'status', 'created', 'updated'
-    );
-
-    public static $fields_static = array(
-        'id', 'client_id', 'name', 'email',
-        'username', 'password', 'salt',
-        'status', 'created', 'updated'
-    );
-
-    public $db_table = "osis_client_login";
-    public static $db_table_static = "osis_client_login";
 
     public $insureship_salt = 'h@mab36$_$2#dutrE=rD';
 
@@ -50,7 +42,7 @@ class ClientLogin extends Model
             }
         }
         DB::table('osis_client_login')->insert($insert_vals);
-        return true; 
+        return true;
     }
 
     public function setPassword($client_login_id, $new_password)
@@ -60,5 +52,24 @@ class ClientLogin extends Model
         DB::table('osis_client_login')
             ->where('id', $client_login_id)
             ->update(['password' => $hashedPassword]);
+    }
+
+    public function getJWTIdentifier()
+    {
+        return $this->getKey();
+    }
+
+    public function getJWTCustomClaims()
+    {
+        return [];
+    }
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function permissions()
+    {
+        return $this->hasMany(ClientLoginPermission::class);
     }
 }

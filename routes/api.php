@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\ModuleController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Admin\Auth\AuthController;
 use App\Http\Controllers\Admin\Bugs\BugsController;
 use App\Http\Controllers\Admin\Test\TestController;
 use App\Http\Controllers\Admin\Admin\AdminController;
@@ -18,6 +18,8 @@ use App\Http\Controllers\Admin\Documentation\DocumentationController;
 use App\Http\Controllers\Admin\Administration\AdministrationController;
 use App\Http\Controllers\Admin\Client\ClientController as AdminClientController;
 use App\Http\Controllers\Admin\Order\OrderController as AdminOrderController;
+use App\Http\Controllers\Client\Order\OrderController as ClientOrderController;
+use App\Http\Controllers\Client\Auth\AuthController as ClientController;
 
 Route::group([
     'middleware' => 'api',
@@ -280,5 +282,20 @@ Route::middleware(['jwt.auth'])->group(function () {
         Route::post('/orders/sendEmail/{order_id}', 'sendEmail');
 
         Route::get('/orders/test_queue', 'testQueuePage');
+    });
+});
+
+Route::prefix('clients')->group(function () {
+    Route::post('login', [ClientController::class, 'login']);
+
+    Route::middleware('jwt.client')->group(function () {
+        Route::get('me', [ClientController::class, 'me']);
+        Route::controller(ClientOrderController::class)->group(function () {
+            Route::get('/orders', 'getClientOrders');
+            Route::get('/orders/search', 'ordersRefine');
+            Route::get('/orders/detail/{order_id}', 'orderDetailPage');
+            Route::post('/orders/export', 'ordersExportSubmit');
+            Route::post('/orders/import',  'importOrders');
+        });
     });
 });

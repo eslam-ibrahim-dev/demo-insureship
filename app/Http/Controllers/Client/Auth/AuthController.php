@@ -1,0 +1,68 @@
+<?php
+
+namespace App\Http\Controllers\Client\Auth;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
+
+
+class AuthController extends Controller
+{
+    public function login(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'username' => 'required|string',
+            'password' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $credentials = $request->only(['username', 'password']);
+
+        try {
+            if (!$token = auth('client')->attempt($credentials)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized: Invalid username or password.',
+                ], 401);
+            }
+            $user = auth('client')->user()->load('permissions');;
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Login successful',
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'username' => $user->username,
+                        'permissions' => $user->permissions->pluck('module'),
+                    ],
+                    'token' => $token,
+                    'token_type' => 'bearer',
+                    'expires_in' => auth('client')->factory()->getTTL() * 60, // Fixed this line
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+
+                'status' => 'error',
+                'message' => 'An error occurred during login',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function me()
+    {
+        return response()->json(auth('client')->user());
+    }
+}

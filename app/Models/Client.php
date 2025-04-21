@@ -4,10 +4,15 @@ namespace App\Models;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Model;
+use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
+use Illuminate\Notifications\Notifiable;
 
 class Client extends Model
 {
+
+    use Notifiable;
 
     protected $table = 'osis_client'; // database name
     protected $fillable = [
@@ -37,33 +42,6 @@ class Client extends Model
         'created',
         'updated'
     ];
-    public static $fields_static = array(
-        'id',
-        'superclient_id',
-        'name',
-        'domain',
-        'referral_id',
-        'apikey',
-        'username',
-        'password',
-        'salt',
-        'webhooks_enabled',
-        'distributor_id',
-        'll_customer_id',
-        'll_api_policy',
-        'll_key',
-        'category',
-        'start_date',
-        'parcel_limit',
-        'email_timeout',
-        'has_ftp',
-        'website',
-        'estimated_start_date',
-        'is_test_account',
-        'status',
-        'created',
-        'updated'
-    );
 
     public function getAllRecords($user)
     {
@@ -258,5 +236,14 @@ class Client extends Model
     {
         return $this->hasMany(Contact::class, 'account_id')
             ->where('account_type', 'client');
+    }
+
+    public function logins()
+    {
+        return $this->hasMany(ClientLogin::class);
+    }
+    public function permissions()
+    {
+        return $this->hasManyThrough(ClientLoginPermission::class, ClientLogin::class, 'client_id', 'client_login_id');
     }
 }

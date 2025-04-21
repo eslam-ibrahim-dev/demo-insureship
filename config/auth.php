@@ -35,16 +35,20 @@ return [
     |
     */
 
-  'guards' => [
-    'api' => [
-        'driver' => 'jwt',
-        'provider' => 'admins',
+    'guards' => [
+        'api' => [
+            'driver' => 'jwt',
+            'provider' => 'admins',
+        ],
+        'admin' => [
+            'driver' => 'jwt',
+            'provider' => 'admins',
+        ],
+        'client' => [
+            'driver' => 'jwt',
+            'provider' => 'client',
+        ],
     ],
-    'admin' => [
-        'driver' => 'jwt',
-        'provider' => 'admins',
-    ],
-],
     /*
     |--------------------------------------------------------------------------
     | User Providers
@@ -68,10 +72,10 @@ return [
             'model' => App\Models\Admin::class,
         ],
 
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        'client' => [
+            'driver' => 'sha',
+            'model' => App\Models\ClientLogin::class,
+        ],
     ],
 
     /*
@@ -96,6 +100,12 @@ return [
     'passwords' => [
         'admins' => [
             'provider' => 'admins',
+            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+        'client' => [
+            'provider' => 'client',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
             'expire' => 60,
             'throttle' => 60,

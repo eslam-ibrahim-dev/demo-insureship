@@ -105,67 +105,7 @@ class Order extends Model
     );
     const CREATED_AT = 'created';
     const UPDATED_AT = 'updated';
-    public static $fields_static = array(
-        'id',
-        'client_id',
-        'subclient_id',
-        'client_offer_id',
-        'merchant_id',
-        'merchant_name',
-        'customer_name',
-        'email',
-        'phone',
-        'shipping_address1',
-        'shipping_address2',
-        'shipping_city',
-        'shipping_state',
-        'shipping_zip',
-        'shipping_country',
-        'billing_address1',
-        'billing_address2',
-        'billing_city',
-        'billing_state',
-        'billing_zip',
-        'billing_country',
-        'order_number',
-        'items_ordered',
-        'order_total',
-        'subtotal',
-        'currency',
-        'coverage_amount',
-        'shipping_amount',
-        'carrier',
-        'tracking_number',
-        'order_date',
-        'ship_date',
-        'source',
-        'order_key',
-        'email_status',
-        'email_time',
-        'register_date',
-        'void_date',
-        'shipping_log_id',
-        'firstname',
-        'lastname',
-        'campaign_id',
-        'test_flag',
-        'status',
-        'created',
-        'updated',
-    );
 
-    public $required_fields = array(
-        'subclient_id',
-        'api_key',
-        'customer_name',
-        'items_ordered',
-        'subtotal',
-        'currency',
-        // 'coverage_amount',
-        'order_number',
-    );
-    public $db_table_extra = "osis_order_extra_info";
-    public static $db_table_extra_static = "osis_order_extra_info";
 
     public function subclient()
     {
@@ -190,88 +130,6 @@ class Order extends Model
     {
         return $this->hasMany(Note::class);
     }
-    public $fields_extra = array(
-        'id',
-        'order_id',
-        'event_id',
-        'event_name',
-        'event_date',
-        'event_time',
-        'event_location',
-        'tg_policy_id',
-        'length',
-        'width',
-        'height',
-        'dimension_unit',
-        'weight',
-        'weight_unit',
-        'created',
-        'updated',
-    );
-
-    public static $fields_extra_static = array(
-        'id',
-        'order_id',
-        'event_id',
-        'event_name',
-        'event_date',
-        'event_time',
-        'event_location',
-        'tg_policy_id',
-        'length',
-        'width',
-        'height',
-        'dimension_unit',
-        'weight',
-        'weight_unit',
-        'created',
-        'updated',
-    );
-
-    public $is_required_fields = array(
-        'order_id',
-        'insurance_amount',
-        'item_name',
-        // 'shipment_value',
-        //'firstname',
-        //'lastname',
-    );
-
-    public $is_to_osis_fields = array(
-        'shipping_address' => 'shipping_address1',
-        'billing_address'  => 'billing_address1',
-        'order_id'         => 'order_number',
-        'item_name'        => 'items_ordered',
-        'shipment_value'   => 'subtotal',
-        'insurance'        => 'coverage_amount',
-        'insurance_amount' => 'coverage_amount',
-        'tracking_id'      => 'tracking_number',
-        'date'             => 'order_date',
-        'created_at'       => 'created',
-    );
-
-    public $ll_to_osis_fields = array(
-        'address'                  => 'shipping_address1',
-        'city'                     => 'shipping_city',
-        "state"                    => "shipping_state",
-        'country'                  => 'shipping_country',
-        "zip"                      => "shipping_zip",
-        'customerNumber'           => 'll_customer_id',
-        "carrier"                  => "carrier",
-        "email"                    => "email",
-        "firstName"                => "firstname",
-        "insurance_amount_charged" => "coverage_amount",
-        "itemName"                 => "items_ordered",
-        "itemValue"                => "subtotal",
-        "key"                      => "apikey",
-        "lastName"                 => "lastname",
-        "orderId"                  => "order_number",
-        "phone"                    => "phone",
-        "policyId"                 => "ll_policy_id",
-        "shippingDate"             => "ship_date",
-        "trackingId"               => "tracking_number",
-        "hash"                     => "hash",
-    );
 
     public function getDateCount($date = 0)
     {
@@ -346,9 +204,15 @@ class Order extends Model
             'billing_country',
             'status'
         ];
+
+        if (isset($data['force_client_id']) && $data['force_client_id'] == true) {
+            $index = array_search('client_id', $fields);
+            if ($index !== false) {
+                unset($fields[$index]);
+            }
+        }
+
         foreach ($data as $key => $value) {
-            // dd($data);
-            // dd(in_array('status', $this->fields));
             if (!empty($value) && in_array($key, $fields) && $key !== "customer_name") {
                 if ($key == "id") {
                     $query->where(function ($q) use ($value) {
@@ -356,15 +220,10 @@ class Order extends Model
                             ->orWhere('osis_order.shipping_log_id', $value);
                     });
                 } else {
-                    // dd('osis_order.' . $key);
-                    // dd($value);
                     $query->where('osis_order.' . $key, $value);
                 }
             }
         }
-        // dd($query->toSql());
-        // dd($query->get());
-        // Handle admin level restrictions
         if (!empty($data['alevel']) && $data['alevel'] == "Guest Admin" && !empty($data['admin_id'])) {
             $query->whereIn('clients.client_id', function ($subquery) use ($data) {
                 $subquery->select('client_id')
@@ -380,7 +239,6 @@ class Order extends Model
         } else {
             $query->orderBy('osis_order.id', 'DESC');
         }
-        // dd($query->get());
         return $query;
     }
 
@@ -422,6 +280,13 @@ class Order extends Model
             $query->whereIn('b.client_id', function ($sub) use ($data) {
                 $sub->select('client_id')->from('osis_admin_client')->where('admin_id', $data['admin_id']);
             });
+        }
+
+        if (isset($data['force_client_id']) && $data['force_client_id'] == true) {
+            $index = array_search('client_id', $this->fields_search);
+            if ($index !== false) {
+                unset($this->fields_search[$index]);
+            }
         }
 
         $filterable = array_intersect_key($data, array_flip($this->fields_search));

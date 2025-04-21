@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin\Auth;
 
 use App\Models\Admin;
 use App\Models\AdminPermission;
@@ -251,21 +251,6 @@ class AuthController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => 'Unauthenticated'], 401);
         }
-    }
-
-    /**
-     * Log the user out (Invalidate the token).
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function logout()
-    {
-        JWTAuth::invalidate(JWTAuth::getToken());
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Successfully logged out'
-        ]);
     }
 
     /**

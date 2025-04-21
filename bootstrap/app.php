@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'jwt.auth' => JWTAuthenticate::class,
+            'jwt.client' => \App\Http\Middleware\ClientJwtMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

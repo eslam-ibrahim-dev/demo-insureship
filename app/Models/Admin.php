@@ -9,7 +9,6 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 
 
-
 class Admin extends Authenticatable implements JWTSubject
 {
     //
@@ -24,11 +23,6 @@ class Admin extends Authenticatable implements JWTSubject
         'username', 'password', 'salt', 'profile_picture', 'old_system_user_id', 'status',
         'created', 'updated'
     ];
-    public static $fields_static = array(
-        'id', 'name', 'email', 'level', 'dashboard',
-        'username', 'password', 'salt', 'profile_picture', 'old_system_user_id', 'status',
-        'created', 'updated'
-    );
     protected $hidden = [
         'password',
         'remember_token',
