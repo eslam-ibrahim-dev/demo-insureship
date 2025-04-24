@@ -49,7 +49,7 @@ class AuthController extends Controller
                         'test' => $user->client->is_test_account,
                         'status' => $user->client->status,
                         'domain' => $user->client->domain,
-                        'refreal_id' => $user->client->referral_id,
+                        'referral_id' => $user->client->referral_id,
                         'apikey' => $user->client->apikey,
                         'permissions' => $user->permissions->pluck('module'),
                     ],

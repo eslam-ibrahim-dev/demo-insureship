@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\Note\NoteController;
 use App\Http\Controllers\ModuleController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\Auth\AuthController;
@@ -277,12 +278,12 @@ Route::middleware(['jwt.auth'])->group(function () {
         Route::post('/orders/export', 'ordersExportSubmit');
         Route::post('/orders/import',  'importOrders');
 
-        Route::post('/orders/detail/{order_id}/add_note', 'addNote');
-        Route::delete('/orders/detail/{note_id}/delete_note', 'deleteNote');
         Route::post('/orders/sendEmail/{order_id}', 'sendEmail');
 
         Route::get('/orders/test_queue', 'testQueuePage');
     });
+    Route::patch('/notes/add_note', [NoteController::class,'addNote']);
+    Route::delete('/notes/delete_note/{id}', [NoteController::class,'deleteNote']);
 });
 
 Route::prefix('clients')->group(function () {
