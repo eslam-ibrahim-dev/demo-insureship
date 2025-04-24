@@ -34,7 +34,7 @@ class AuthController extends Controller
                     'message' => 'Unauthorized: Invalid username or password.',
                 ], 401);
             }
-            $user = auth('client')->user()->load('permissions');;
+            $user = auth('client')->user()->load('permissions', 'client');
 
             return response()->json([
                 'status' => 'success',
@@ -44,6 +44,13 @@ class AuthController extends Controller
                         'id' => $user->id,
                         'name' => $user->name,
                         'username' => $user->username,
+                        'email' => $user->email,
+                        'superclient_id' => $user->client->superclient_id,
+                        'test' => $user->client->is_test_account,
+                        'status' => $user->client->status,
+                        'domain' => $user->client->domain,
+                        'refreal_id' => $user->client->referral_id,
+                        'apikey' => $user->client->apikey,
                         'permissions' => $user->permissions->pluck('module'),
                     ],
                     'token' => $token,

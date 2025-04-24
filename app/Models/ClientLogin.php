@@ -65,11 +65,11 @@ class ClientLogin extends Authenticatable implements JWTSubject
     }
     public function client()
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(Client::class, 'client_id');
     }
 
     public function permissions()
     {
-        return $this->hasMany(ClientLoginPermission::class);
+        return $this->hasMany(ClientLoginPermission::class, 'client_login_id');
     }
 }
