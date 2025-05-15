@@ -54,7 +54,6 @@ class ClaimPayment extends Model
     );
 
     protected $table = "osis_claim_payment";
-    public $db_table = "osis_claim_payment";
 
     public function claim_payment_update(&$id, &$data)
     {

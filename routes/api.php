@@ -111,26 +111,14 @@ Route::middleware(['jwt.auth'])->group(function () {
     /* Documentation Controller */
     Route::get('/documentation/api', [DocumentationController::class, 'apiPage'])->name('admin_api_doc');
 
-
-
-
-
-
-
-
     /**
      *
      * Claims
      *
      */
-    Route::get('/export-claims', [ClaimsController::class, 'exportClaimsPage'])->name('admin_export_claims');
     Route::post('/export-claims/submit', [ClaimsController::class, 'exportClaimsSubmit'])->name('admin_export_claims_submit');
 
-    Route::get('/my-claims', [ClaimsController::class, 'myClaimsPage'])->name('admin_my_claims');
-    Route::get('/my-claims/refine', [ClaimsController::class, 'myClaimsRefine'])->name('admin_my_claims_refine');
-
-    Route::get('/all-claims', [ClaimsController::class, 'allClaimsPage'])->name('admin_all_claims');
-    Route::get('/all-claims/refine', [ClaimsController::class, 'allClaimsRefine'])->name('admin_all_claims_refine');
+    Route::get('/claims', [ClaimsController::class, 'getClaimsData']);
 
     Route::get('/completed-claims', [ClaimsController::class, 'completedClaimsPage'])->name('admin_completed_claims_list');
     Route::get('/pending-denial-claims', [ClaimsController::class, 'pendingDenialClaimsPage'])->name('admin_pending_denial_claims_list');
@@ -143,6 +131,7 @@ Route::middleware(['jwt.auth'])->group(function () {
      *
      */
     Route::get('/claim/{claim_id}', [ClaimsController::class, 'detailPage'])->name('admin_claim_detail');
+    
     Route::get('/claim/{claim_id}/approved', [ClaimsController::class, 'approvedPage'])->name('admin_claim_approved');
     Route::post('/claim/{claim_id}/approved-submit', [ClaimsController::class, 'approvedSubmit'])->name('admin_claim_approved_submit');
     Route::post('/claim/{claim_id}/approved-submit/no-pay-out', [ClaimsController::class, 'approvedSubmitNoPayOut'])->name('admin_claim_approved_submit_no_pay_out');
@@ -161,7 +150,6 @@ Route::middleware(['jwt.auth'])->group(function () {
      * Unmatched Claim detail and actions
      *
      */
-    Route::get('/unmatched_claim/{claim_id}', [ClaimsController::class, 'detailPageUnmatched'])->name('admin_unmatched_claim_detail');
     Route::get('/unmatched_claim/{claim_id}/approved', [ClaimsController::class, 'approvedPageUnmatched'])->name('admin_unmatched_claim_approved');
     Route::post('/unmatched_claim/{claim_id}/approved-submit', [ClaimsController::class, 'approvedSubmitUnmatched'])->name('admin_unmatched_claim_approved_submit');
     Route::post('/unmatched_claim/{claim_id}/approved-submit/no-pay-out', [ClaimsController::class, 'approvedSubmitNoPayOutUnmatched'])->name('admin_unmatched_claim_approved_submit_no_pay_out');
@@ -277,6 +265,7 @@ Route::middleware(['jwt.auth'])->group(function () {
 
         Route::post('/orders/export', 'ordersExportSubmit');
         Route::post('/orders/import',  'importOrders');
+        Route::post('/orders/newOrder',  'newOrders');
 
         Route::post('/orders/sendEmail/{order_id}', 'sendEmail');
 

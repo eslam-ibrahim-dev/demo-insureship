@@ -238,6 +238,11 @@ class Client extends Model
             ->where('account_type', 'client');
     }
 
+     public function notes()
+    {
+        return $this->hasMany(Note::class, 'parent_id')->where('parent_type', 'client');
+    }
+
     public function logins()
     {
         return $this->hasMany(ClientLogin::class);

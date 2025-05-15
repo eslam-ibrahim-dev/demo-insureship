@@ -28,12 +28,6 @@ class Note extends Model
     {
         return $this->belongsTo(Admin::class);
     }
-
-    public function notes()
-    {
-        return $this->hasMany(Note::class);
-    }
-
     public static function get_by_parent($type, $id)
     {
         return self::leftJoin('osis_admin as b', 'osis_note.admin_id', '=', 'b.id')

@@ -255,6 +255,41 @@ class ClaimUnmatched extends Model
     public $message_db_table = "osis_claim_unmatched_message";
     public static $message_db_table_static = "osis_claim_unmatched_message";
 
+
+    public function subclient()
+    {
+        return $this->belongsTo(Subclient::class, 'subclient_id');
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class, 'client_id');
+    }
+
+    public function claimLink()
+    {
+        return $this->hasOne(ClaimLink::class, 'unmatched_claim_id', 'id');
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class, 'order_id');
+    }
+
+    public function assignedAdmin()
+    {
+        return $this->belongsTo(Admin::class, 'admin_id');
+    }
+
+     public function claimPayments()
+    {
+        return $this->hasMany(ClaimPayment::class, 'claim_link_id');
+    }
+
+    public function messages()
+    {
+        return $this->hasMany(ClaimMessage::class, 'claim_id');
+    }
     public $is_to_osis_fields = array(
         'order_id'        => 'order_number',
         'item_name'       => 'items_purchased',
@@ -284,340 +319,128 @@ class ClaimUnmatched extends Model
             ->first();
     }
 
-    public static function adminGetClaimsList(&$data)
+    public function getAdminUnmatchedClaimsList(array $data): array
     {
-        $params = [];
+        $baseQuery =  DB::table('osis_claim_unmatched as a')
+            ->select(
+                'a.*',
+                DB::raw("'Unmatched' AS claim_type_name"),
+                DB::raw("CASE 
+                WHEN (a.admin_id IS NOT NULL) THEN 
+                    CASE 
+                        WHEN (a.admin_id > 0) THEN d.name 
+                        ELSE 'Unassigned' 
+                    END 
+                ELSE 'N/A' 
+            END AS agent"),
+                'f.name as client_name',
+                'e.id as master_claim_id'
+            )
+            ->leftJoin('osis_admin as d', 'a.admin_id', '=', 'd.id')
+            ->join('osis_claim_type_link as e', 'a.id', '=', 'e.unmatched_claim_id')
+            ->join('osis_client as f', 'a.client_id', '=', 'f.id');
 
-        $search = "";
-
-        // Filter by status
         if (!empty($data['status'])) {
-            if ($data['status'] == 'all') {
-                //* no scope
-            } elseif ($data['status'] == "open") {
-                $search .= " AND (a.status = 'Claim Received' OR a.status = 'Under Review' OR a.status = 'Waiting On Documents' OR a.status = 'Completed' OR a.status = 'Approved') ";
-            } elseif ($data['status'] == "paid") {
-                $search .= " AND (a.status = 'Paid' OR a.status = 'Closed - Paid') ";
-            } elseif ($data['status'] == "denied") {
-                $search .= " AND (a.status = 'Pending Denial' OR a.status = 'Denied' OR a.status = 'Closed - Denied') ";
-            } else {
-                $search .= " AND a.status = ? ";
-                $params[] = $data['status'];
+            switch ($data['status']) {
+                case 'open':
+                    $baseQuery->whereIn('a.status', ['Claim Received', 'Under Review', 'Waiting On Documents', 'Completed', 'Approved']);
+                    break;
+                case 'paid':
+                    $baseQuery->whereIn('a.status', ['Paid', 'Closed - Paid']);
+                    break;
+                case 'denied':
+                    $baseQuery->whereIn('a.status', ['Pending Denial', 'Denied', 'Closed - Denied']);
+                    break;
+                case 'all':
+                    break;
+                default:
+                    $baseQuery->where('a.status', $data['status']);
             }
         }
 
-        // Exclude test accounts
-        if (empty($data['include_test_entity'])) {
-            $search .= " AND f.is_test_account != 1 ";
-        }
-
-        // Filter by claimant payment supplied
-        if (!empty($data['include_claimant_payment_supplied'])) {
-            $search .= " AND a.claimant_supplied_payment = 1 ";
-        }
-
-        // Filter by assigned_type
         if (!empty($data['assigned_type'])) {
-            if ($data['assigned_type'] == "assigned") {
-                $search .= " AND a.admin_id > 0 ";
-            } elseif ($data['assigned_type'] == "unassigned") {
-                $search .= " AND a.admin_id <= 0 ";
-            } elseif ($data['assigned_type'] > 0) {
-                $search .= " AND a.admin_id = ? ";
-                $params[] = $data['assigned_type'];
+            switch ($data['assigned_type']) {
+                case -1:
+                    $baseQuery->where('a.admin_id', '>', 0);
+                    break;
+                case -2:
+                    $baseQuery->where('a.admin_id', '<=', 0);
+                    break;
+                default:
+                    $baseQuery->where('a.admin_id', $data['assigned_type']);
             }
         }
 
-        // Filter by date range
+        if (!empty($data['include_test_entity']) && $data['include_test_entity'] == 1) {
+            $baseQuery->where('f.is_test_account', '=', 1)
+                ->where('g.is_test_account', '=', 1);
+        }
+
+        if (!empty($data['include_claimant_payment_supplied'])) {
+            $baseQuery->where('a.claimant_supplied_payment', 1);
+        }
+
         if (!empty($data['start_date'])) {
-            $search .= " AND a.created >= ? ";
-            $params[] = $data['start_date'];
+            $baseQuery->where('a.created', '>=', $data['start_date']);
         }
 
         if (!empty($data['end_date'])) {
-            $search .= " AND a.created <= ? ";
-            $params[] = $data['end_date'];
+            $baseQuery->where('a.created', '<=', $data['end_date']);
         }
 
-        // Filter by tracking_number
         if (!empty($data['tracking_number'])) {
-            $search .= " AND a.tracking_number = ? ";
-            $params[] = $data['tracking_number'];
+            $baseQuery->where('a.tracking_number', $data['tracking_number']);
         }
 
-        // Filter by order_number
-        if (!empty($data['order_number'])) {
-            $search .= " AND a.order_number = ? ";
-            $params[] = $data['order_number'];
-        }
-
-        // Filter by claim_id
         if (!empty($data['claim_id'])) {
-            $search .= " AND (a.id = ? OR a.claim_id = ? OR e.id = ? OR a.old_claim_id = ?) ";
-            $params[] = $data['claim_id'];
-            $params[] = $data['claim_id'];
-            $params[] = $data['claim_id'];
-            $params[] = $data['claim_id'];
-        } else {
-            $search .= " AND a.claim_id IS NULL ";
+            $baseQuery->where(function ($q) use ($data) {
+                $q->where('a.id', $data['claim_id'])
+                    ->orWhere('a.old_claim_id', $data['claim_id']);
+            });
         }
 
-        // Filter by claimant_name
         if (!empty($data['claimant_name'])) {
-            $search .= " AND (a.customer_name LIKE ? OR a.customer_name LIKE ?) ";
-            $params[] = $data['claimant_name'] . "%";
-            $params[] = "%" . $data['claimant_name'];
+            $baseQuery->where(function ($q) use ($data) {
+                $q->where('a.customer_name', 'like', $data['claimant_name'] . '%')
+                    ->orWhere('a.customer_name', 'like', '%' . $data['claimant_name']);
+            });
         }
 
-        // Filter by superclient_id
         if (!empty($data['superclient_id'])) {
-            $search .= " AND f.superclient_id = ? ";
-            $params[] = $data['superclient_id'];
+            $baseQuery->where('f.superclient_id', $data['superclient_id']);
         }
 
-        // Filter by other fields
-        $allowedFields = [
-            'tracking_number',
-            'order_number',
-            'superclient_id',
-            'claimant_name',
-            'claim_id',
-            'created',
-            'status',
-            'admin_id',
-            'client_id',
-            'subclient_id'
-        ];
-
-        foreach ($data as $key => $value) {
-            if ($value != "" && in_array($key, $allowedFields) && !empty($value) && $key != 'status' && $key != 'claim_id') {
-                $search .= " AND a." . $key . " = ? ";
-                $params[] = $value;
+        $extraFields = ['order_number', 'client_id', 'subclient_id', 'claim_type'];
+        foreach ($extraFields as $field) {
+            if (!empty($data[$field])) {
+                $baseQuery->where("a.$field", $data[$field]);
             }
         }
 
-        // Filter by admin_id
-        if (!empty($data['admin_id']) && is_numeric($data['admin_id'])) {
-            $search .= " AND a.admin_id = ? ";
-            $params[] = $data['admin_id'];
-        }
-
-        // Sorting
-        $sort_field = isset($data['sort_field']) && $data['sort_field'] != "" ? $data['sort_field'] : " a.created ";
-        if (!empty($data['sort_field']) && $data['sort_field'] == 'claim_id') {
-            $sort_field = " a.created ";
-        }
-        $sort_dir = isset($data['sort_direction']) && $data['sort_direction'] != "" ? $data['sort_direction'] : " DESC ";
+        // Clone for total count
+        $countQuery = clone $baseQuery;
+        $total = $countQuery->count();
 
         // Pagination
-        $limit = isset($data['page']) && $data['page'] != "" ? " LIMIT " . (($data['page'] - 1) * 30) . ",30 " : " LIMIT 0,30 ";
+        $page = isset($data['page']) && $data['page'] > 0 ? (int)$data['page'] : 1;
+        $sortField = $data['sort_field'] ?? 'a.created';
+        $sortDirection = $data['sort_direction'] ?? 'desc';
 
-        // Final query using Query Builder
-        $sql = "
-            SELECT
-                a.*,
-                'Unmatched' AS claim_type_name,
-                CASE
-                    WHEN (a.admin_id IS NOT NULL)
-                    THEN
-                        CASE
-                        WHEN (a.admin_id > 0)
-                        THEN d.name
-                        ELSE 'Unassigned'
-                        END
-                    ELSE 'N/A'
-                END AS agent,
-                f.name AS client_name,
-                e.id AS master_claim_id
-            FROM
-                osis_claim_unmatched a
-                LEFT JOIN osis_admin d ON a.admin_id = d.id
-                INNER JOIN osis_claim_type_link e ON a.id = e.unmatched_claim_id
-                INNER JOIN osis_client f ON a.client_id = f.id
-            WHERE
-                1=1 {$search}
-            ORDER BY {$sort_field} {$sort_dir}
-            {$limit}
-        ";
+        $results = $baseQuery
+            ->orderBy($sortField, $sortDirection)
+            ->offset(($page - 1) * 30)
+            ->limit(30)
+            ->get();
 
-        return DB::select($sql, $params);
-    }
-
-
-    public function admin_get_claims_list_count(&$data)
-    {
-        $params = array();
-        $search = "";
-
-        // استبدال this->fillable مباشرة بقيمها هنا:
-        $fillable = [
-            'id',
-            'claim_id',
-            'client_id',
-            'subclient_id',
-            'unread',
-            'merchant_id',
-            'merchant_name',
-            'customer_name',
-            'email',
-            'phone',
-            'order_address1',
-            'order_address2',
-            'order_city',
-            'order_state',
-            'order_zip',
-            'order_country',
-            'ship_date',
-            'delivery_date',
-            'payment_type',
-            'claimant_supplied_payment',
-            'paid_to',
-            'mailing_address1',
-            'mailing_address2',
-            'mailing_city',
-            'mailing_state',
-            'mailing_zip',
-            'mailing_country',
-            'order_number',
-            'tracking_number',
-            'date_of_purchase',
-            'date_of_issue',
-            'items_purchased',
-            'purchase_amount',
-            'claim_amount',
-            'amount_to_pay_out',
-            'paid_amount',
-            'currency',
-            'issue_type',
-            'url',
-            'description',
-            'extra_info',
-            'comments',
-            'admin_id',
-            'electronic_notice',
-            'status',
-            'filed_date',
-            'under_review_date',
-            'wod_date',
-            'completed_date',
-            'approved_date',
-            'paid_date',
-            'pending_denial_date',
-            'denied_date',
-            'closed_date',
-            'claim_key',
-            'carrier',
-            'abandoned',
-            'old_claim_id',
-            'file_ip_address',
-            'source',
-            'created',
-            'updated'
+        return [
+            'unmatched_claims_total' => $total,
+            'unmatched_claims_data' => $results,
+            'per_page' => 30,
+            'current_page' => $page,
+            'last_page' => ceil($total / 30),
         ];
-
-        if (!empty($data['status'])) {
-            if ($data['status'] == 'all') {
-                //* no scope
-            } elseif ($data['status'] == "open") {
-                $search .= " AND (a.status = 'Claim Received' OR a.status = 'Under Review' OR a.status = 'Waiting On Documents' OR a.status = 'Completed' OR a.status = 'Approved') ";
-            } elseif ($data['status'] == "paid") {
-                $search .= " AND (a.status = 'Paid' OR a.status = 'Closed - Paid') ";
-            } elseif ($data['status'] == "denied") {
-                $search .= " AND (a.status = 'Pending Denial' OR a.status = 'Pending Denied' OR a.status = 'Denied' OR a.status = 'Closed - Denied') ";
-            } else {
-                $search .= " AND a.status = ? ";
-                $params[] = $data['status'];
-            }
-        }
-
-        if (empty($data['include_test_entity'])) {
-            $search .= " AND f.is_test_account != 1 ";
-        }
-
-        if (!empty($data['include_claimant_payment_supplied'])) {
-            $search .= " AND a.claimant_supplied_payment = 1 ";
-        }
-
-        if (!empty($data['assigned_type'])) {
-            if ($data['assigned_type'] == "assigned") {
-                $search .= " AND a.admin_id > 0 ";
-            } elseif ($data['assigned_type'] == "unassigned") {
-                $search .= " AND a.admin_id <= 0 ";
-            } elseif ($data['assigned_type'] > 0) {
-                $search .= " AND a.admin_id = ? ";
-                $params[] = $data['assigned_type'];
-            }
-        }
-
-        if (!empty($data['start_date'])) {
-            $search .= " AND a.created >= ? ";
-            $params[] = $data['start_date'];
-        }
-
-        if (!empty($data['end_date'])) {
-            $search .= " AND a.created <= ? ";
-            $params[] = $data['end_date'];
-        }
-
-        if (!empty($data['tracking_number'])) {
-            $search .= " AND a.tracking_number = ? ";
-            $params[] = $data['tracking_number'];
-        }
-
-        if (!empty($data['order_number'])) {
-            $search .= " AND a.order_number = ? ";
-            $params[] = $data['order_number'];
-        }
-
-        if (!empty($data['claim_id'])) {
-            $search .= " AND (a.id = ? OR a.claim_id = ? OR e.id = ? OR a.old_claim_id = ?) ";
-            $params[] = $data['claim_id'];
-            $params[] = $data['claim_id'];
-            $params[] = $data['claim_id'];
-            $params[] = $data['claim_id'];
-        } else {
-            $search .= " AND a.claim_id IS NULL ";
-        }
-
-        if (!empty($data['claimant_name'])) {
-            $search .= " AND (a.customer_name LIKE ? OR a.customer_name LIKE ?) ";
-            $params[] = $data['claimant_name'] . "%";
-            $params[] = "%" . $data['claimant_name'];
-        }
-
-        if (!empty($data['superclient_id'])) {
-            $search .= " AND f.superclient_id = ? ";
-            $params[] = $data['superclient_id'];
-        }
-
-        foreach ($data as $key => $value) {
-            if ($value != "" && in_array($key, $fillable) && !empty($value) && $key != 'status' && $key != 'claim_id') {
-                $search .= " AND a." . $key . " = ? ";
-                $params[] = $value;
-            }
-        }
-
-        if (!empty($data['admin_id']) && is_numeric($data['admin_id'])) {
-            $search .= " AND a.admin_id = ? ";
-            $params[] = $data['admin_id'];
-        }
-
-        $sql = "
-            SELECT
-                COUNT(*) AS myCount
-            FROM
-                osis_claim_unmatched a
-                LEFT JOIN osis_admin d ON a.admin_id = d.id
-                INNER JOIN osis_claim_type_link e ON a.id = e.unmatched_claim_id
-                INNER JOIN osis_client f ON a.client_id = f.id
-            WHERE
-                1=1 {$search}
-        ";
-
-        $results = $this->selectone($sql, $params);
-
-        return $results['myCount'];
     }
+
 
 
     public function adminGetClaimsListNoLimit(&$data)

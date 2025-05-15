@@ -92,6 +92,10 @@ class SubClient extends Model
         return $data;
     }
 
+    public function notes()
+    {
+        return $this->hasMany(Note::class, 'parent_id')->where('parent_type', 'subclient');
+    }
 
     public function getAdminIsDashboardReport($start_date = null, $end_date = null, $alevel = 'Admin', $admin_id = 0)
     {

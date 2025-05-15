@@ -122,6 +122,11 @@ class Order extends Model
         return $this->belongsToMany(Offer::class, 'osis_order_offer', 'order_id', 'offer_id');
     }
 
+    public function extraInfo()
+    {
+        return $this->hasOne(OrderExtraInfo::class, 'order_id');
+    }
+
     public function transactions()
     {
         return $this->hasMany(Transaction::class);

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Admin\Claims;
+namespace App\Services\Client\Claims;
 
 use App\Http\Resources\ClaimDetailResource;
 use App\Models\Admin;
@@ -119,37 +119,11 @@ class ClaimsService
     );
 
 
-    public function getClaimsData($data)
+    public function getClientClaimsList($data)
     {
         $claims = new Claim();
-        $claimsUnmatched = new ClaimUnmatched();
-        $type = $data['type'] ?? 'matched';
 
-        switch ($type) {
-            case 'matched':
-                return [
-                    'type' => 'matched',
-                    'data' => $claims->getAdminClaimsList($data)
-                ];
-
-            case 'unmatched':
-                return [
-                    'type' => 'unmatched',
-                    'data' => $claimsUnmatched->getAdminUnmatchedClaimsList($data)
-                ];
-
-            case 'all':
-                return [
-                    'type' => 'all',
-                    'matched' => $claims->getAdminClaimsList($data),
-                    'unmatched' => $claimsUnmatched->getAdminUnmatchedClaimsList($data)
-                ];
-
-            default:
-                return [
-                    'error' => 'Invalid type specified. Use "matched", "unmatched", or "all".'
-                ];
-        }
+        return $claims->getAdminUnmatchedClaimsList($data);
     }
 
     public function completedClaimsPage($vars)
