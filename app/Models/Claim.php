@@ -131,6 +131,7 @@ class Claim extends Model
                 'a.id',
                 'a.client_id',
                 'a.subclient_id',
+                'g.name',
                 'a.claim_type',
                 'a.claim_amount',
                 'a.status',
@@ -139,6 +140,7 @@ class Claim extends Model
                 'a.merchant_name',
                 'a.unread',
                 'a.created',
+                'a.updated',
                 'a.file_ip_address',
                 DB::raw("CASE WHEN (c.link_name IS NULL OR c.link_name = '') THEN 'N/A' ELSE c.name END as claim_type_name"),
                 DB::raw("CASE 
