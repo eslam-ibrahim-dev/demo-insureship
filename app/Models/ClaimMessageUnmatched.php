@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class ClaimMessage extends Model
+class ClaimMessageUnmatched extends Model
 {
-    protected $table = 'osis_claim_message';
+    protected $table = 'osis_claim_unmatched_message';
 
     protected $fillable = array(
         'id',
@@ -22,13 +22,13 @@ class ClaimMessage extends Model
         'created',
         'updated'
     );
-
-    public function claim()
-    {
-        return $this->belongsTo(Claim::class, 'claim_id');
-    }
     public function admin()
     {
         return $this->belongsTo(Admin::class, 'admin_id');
+    }
+
+    public function claimUnmatched()
+    {
+        return $this->belongsTo(ClaimUnmatched::class, 'claim_id');
     }
 }

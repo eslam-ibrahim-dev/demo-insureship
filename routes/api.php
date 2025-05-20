@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\Client\ClientController as AdminClientController;
 use App\Http\Controllers\Admin\Order\OrderController as AdminOrderController;
 use App\Http\Controllers\Client\Order\OrderController as ClientOrderController;
 use App\Http\Controllers\Client\Auth\AuthController as ClientController;
+use App\Http\Controllers\Client\Claims\ClaimsController as ClientClaimsController;
 
 Route::group([
     'middleware' => 'api',
@@ -116,7 +117,7 @@ Route::middleware(['jwt.auth'])->group(function () {
      * Claims
      *
      */
-    Route::post('/export-claims/submit', [ClaimsController::class, 'exportClaimsSubmit'])->name('admin_export_claims_submit');
+    Route::post('/export-claims', [ClaimsController::class, 'getClaimExportFull']);
 
     Route::get('/claims', [ClaimsController::class, 'getClaimsData']);
 
@@ -131,7 +132,7 @@ Route::middleware(['jwt.auth'])->group(function () {
      *
      */
     Route::get('/claim/{claim_id}', [ClaimsController::class, 'detailPage'])->name('admin_claim_detail');
-    
+
     Route::get('/claim/{claim_id}/approved', [ClaimsController::class, 'approvedPage'])->name('admin_claim_approved');
     Route::post('/claim/{claim_id}/approved-submit', [ClaimsController::class, 'approvedSubmit'])->name('admin_claim_approved_submit');
     Route::post('/claim/{claim_id}/approved-submit/no-pay-out', [ClaimsController::class, 'approvedSubmitNoPayOut'])->name('admin_claim_approved_submit_no_pay_out');
@@ -271,8 +272,8 @@ Route::middleware(['jwt.auth'])->group(function () {
 
         Route::get('/orders/test_queue', 'testQueuePage');
     });
-    Route::patch('/notes/add_note', [NoteController::class,'addNote']);
-    Route::delete('/notes/delete_note/{id}', [NoteController::class,'deleteNote']);
+    Route::patch('/notes/add_note', [NoteController::class, 'addNote']);
+    Route::delete('/notes/delete_note/{id}', [NoteController::class, 'deleteNote']);
 });
 
 Route::prefix('clients')->group(function () {
@@ -286,6 +287,11 @@ Route::prefix('clients')->group(function () {
             Route::get('/orders/detail/{order_id}', 'orderDetailPage');
             Route::post('/orders/export', 'ordersExportSubmit');
             Route::post('/orders/import',  'importOrders');
+        });
+        Route::controller(ClientClaimsController::class)->group(function () {
+            Route::get('claims',  'getClientClaimsList');
+            Route::post('/create-claim', 'newClaimSubmit');
+            Route::get('/claim/{claim_id}', 'detailPage');
         });
     });
 });

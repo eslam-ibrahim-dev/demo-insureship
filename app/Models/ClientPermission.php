@@ -12,7 +12,7 @@ class ClientPermission extends Model
         'id', 'client_login_id', 'module', 'created',
     ];
 
-    public function get_modules_by_client_login_id($client_login_id)
+    public static function get_modules_by_client_login_id($client_login_id)
     {
         $modules = DB::table('osis_client_login_permission')
             ->where('client_login_id', $client_login_id)

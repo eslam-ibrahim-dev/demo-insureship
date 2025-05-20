@@ -3,258 +3,320 @@
 namespace App\Services\Client\Claims;
 
 use App\Http\Resources\ClaimDetailResource;
-use App\Models\Admin;
+use App\Models\ClientPermission;
 use App\Models\Claim;
 use App\Models\ClaimLink;
-use App\Models\Client;
-use App\Models\Subclient;
-use App\Models\SuperClient;
-use App\Models\Offer;
-use App\Models\MyMailer;
-use App\Models\Webhook;
-use App\Models\ClaimPayment;
 use Illuminate\Support\Str;
 use App\Models\ClaimUnmatched;
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request;
-use Symfony\Component\Intl\Countries;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\File;
-
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Http\JsonResponse;
+use App\Mail\ClaimSubmitted;
+use App\Services\MailConfigurationService;
 
 class ClaimsService
 {
     public $sg_clients = array(56854, 56863, 56856, 56862, 56855, 56866, 56864, 56858);
 
     // Could have broken up the fields by the underscore and capitalized, however this gives greater control
-    public $export_headers = array(
-        'master_claim_id'    => 'Master Claim ID',
-        'matched_claim_id'   => 'Matched Claim ID',
-        'unmatched_claim_id' => 'Unmatched Claim ID',
-        'claim_id'           => 'Current Claim ID',
-        'superclient'        => array('Superclient ID', 'Superclient'),
-        'client'             => array('Client ID', 'Client'),
-        'subclient'          => array('Subclient ID', 'Subclient'),
-        'claim_type'         => 'Claim Type',
-        'date_of_issue'      => 'Date of Issue',
-        'description'        => 'Description',
-        'comments'           => 'Comments',
-        'issue_type'         => 'Issue Type',
-        'items_purchased'    => 'Items Purchased',
-        'purchase_amount'    => 'Purchase Amount',
-        'customer_name'      => 'Customer Name',
-        'email'              => 'Email',
-        'phone'              => 'Phone',
-        'order_address'      => array('Order Address 1', 'Order Address 2', 'Order City', 'Order State', 'Order Zip', 'Order Country'),
-        'mailing_address'    => array('Paid To', 'Mailing Address 1', 'Mailing Address 2', 'Mailing City', 'Mailing State', 'Mailing Zip', 'Mailing Country'),
-        'shipping_address'   => array('Shipping Address 1', 'Shipping Address 2', 'Shipping City', 'Shipping State', 'Shipping Zip', 'Shipping Country'),
-        'billing_address'    => array('Billing Address 1', 'Billing Address 2', 'Billing City', 'Billing State', 'Billing Zip', 'Billing Country'),
-        'paid_amount'        => 'Paid Amount',
-        'claim_amount'       => 'Claim Amount',
-        'amount_to_pay_out'  => 'Amount To Pay Out',
-        'currency'           => 'Currency',
-        'status'             => 'Status',
-        'status_dates'       => array('Filed Date', 'Under Review Date', 'Waiting On Documents Date', 'Completed Date', 'Approved Date', 'Paid Date', 'Pending Denial Date', 'Denied Date', 'Closed Date'),
-        'electronic_notice'  => 'Electronic Notice',
-        'created'            => 'Created',
-        'order_date'         => 'Order Date',
-        'agent'              => 'Agent',
-        'file_ip_address'    => 'File IP Address',
-        'payment_type'       => 'Payment Type',
-        'extra_info'         => 'Extra Info',
-        'tracking_number'    => 'Tracking Number',
-        'carrier'            => 'Carrier',
-        'abandoned'          => 'Abandoned',
-        'ship_date'          => 'Ship Date',
-        'delivery_date'      => "Delivery Date",
-        'order_number'       => 'Order Number',
-        'merchant_id'        => 'Merchant ID',
-        'merchant_name'      => 'Merchant Name',
-        'order_id'           => 'Policy ID'
-    );
-    public $export_fields = array(
-        'master_claim_id'    => 'master_claim_id',
-        'matched_claim_id'   => 'matched_claim_id',
-        'unmatched_claim_id' => 'unmatched_claim_id',
-        'claim_id'           => 'claim_id',
-        'superclient'        => array('superclient_id', 'superclient'),
-        'client'             => array('client_id', 'client'),
-        'subclient'          => array('subclient_id', 'subclient'),
-        'claim_type'         => 'claim_type',
-        'date_of_issue'      => 'date_of_issue',
-        'description'        => 'description',
-        'comments'           => 'comments',
-        'issue_type'         => 'issue_type',
-        'items_purchased'    => 'items_purchased',
-        'purchase_amount'    => 'purchase_amount',
-        'customer_name'      => 'customer_name',
-        'email'              => 'email',
-        'phone'              => 'phone',
-        'order_address'      => array('order_address1', 'order_address2', 'order_city', 'order_state', 'order_zip', 'order_country'),
-        'mailing_address'    => array('paid_to', 'mailing_address1', 'mailing_address2', 'mailing_city', 'mailing_state', 'mailing_zip', 'mailing_country'),
-        'shipping_address'   => array('shipping_address1', 'shipping_address2', 'shipping_city', 'shipping_state', 'shipping_zip', 'shipping_country'),
-        'billing_address'    => array('billing_address1', 'billing_address2', 'billing_city', 'billing_state', 'billing_zip', 'billing_country'),
-        'paid_amount'        => 'paid_amount',
-        'claim_amount'       => 'claim_amount',
-        'amount_to_pay_out'  => 'amount_to_pay_out',
-        'currency'           => 'currency',
-        'status'             => 'status',
-        'status_dates'       => array('filed_date', 'under_review_date', 'wod_date', 'completed_date', 'approved_date', 'paid_date', 'pending_denial_date', 'denied_date', 'closed_date'),
-        'electronic_notice'  => 'electronic_notice',
-        'created'            => 'created',
-        'order_date'         => 'order_date',
-        'agent'              => 'agent',
-        'file_ip_address'    => 'file_ip_address',
-        'payment_type'       => 'payment_type',
-        'extra_info'         => 'extra_info',
-        'tracking_number'    => 'tracking_number',
-        'carrier'            => 'carrier',
-        'abandoned'          => 'abandoned',
-        'ship_date'          => 'ship_date',
-        'delivery_date'      => "delivery_date",
-        'order_number'       => 'order_number',
-        'merchant_id'        => 'merchant_id',
-        'merchant_name'      => 'merchant_name',
-        'order_id'           => 'order_id'
-    );
 
+    protected array $columns;
 
-    public function getClientClaimsList($data)
+    public function __construct()
     {
-        $claims = new Claim();
-
-        return $claims->getAdminUnmatchedClaimsList($data);
+        $this->columns = [
+            'matched'   => Schema::getColumnListing('osis_claim'),
+            'unmatched' => Schema::getColumnListing('osis_claim_unmatched'),
+            'payment'   => Schema::getColumnListing('osis_claim_payment'),
+            'order'     => Schema::getColumnListing('osis_order'),
+        ];
     }
-
-    public function completedClaimsPage($vars)
+    ///////////////////////////////////// Create Claim ////////////////////////////////////////////////////
+    public function processClaim($request): JsonResponse
     {
-        $user = auth('admin')->user();
-        $data['profile_picture'] = $user->profile_picture;
-        $data['user_name'] = $user->name;
-        $data['alevel'] = $user->level;
-        if ($data['alevel'] === 'Guest Admin') {
+        $user = auth('client')->user();
+        $this->validatePermissions($user);
+        try {
+            return DB::transaction(function () use ($request) {
+                $data = $this->processInput($request);
+
+                $claim = $this->createClaim($data);
+                $claimLink = $this->createClaimLink($claim);
+                $this->addSystemMessage($claim, 'Claim Created', 'Created');
+                // $this->sendConfirmation($claim, MailConfigurationService $mailerService, $claimLink->id);
+                return response()->json([
+                    'master_claim_id' => $claimLink->id,
+                    'claim_id' => $claim->id,
+                    'message' => "Claim Created Successfully"
+                ], 201);
+            }, 5);
+        } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Unauthorized Access',
-            ], 403);
+                'error' => 'Claim processing failed',
+                'message' => $e->getMessage()
+            ], 500);
         }
-        $data['status'] = "Completed";
-        $adminModel = new Claim();
-        $data['matched_claims'] = $adminModel->adminGetClaimsListNoLimit($data);
-        $claimUnmatchedModel = new ClaimUnmatched();
-        $data['unmatched_claims'] = $claimUnmatchedModel->adminGetClaimsListNoLimit($data);
-        return response()->json(['data' => $data], 200);
     }
 
-
-
-    public function pendingDenialClaimsPage($vars)
+    protected function validatePermissions($user): void
     {
-        $user = auth('admin')->user();
-        $data['profile_picture'] = $user->profile_picture;
-        $data['user_name'] = $user->name;
-        $data['alevel'] = $user->level;
-        if ($data['alevel'] === 'Guest Admin') {
-            return response()->json([
-                'message' => 'Unauthorized Access',
-            ], 403);
+        $permissions = ClientPermission::get_modules_by_client_login_id($user->id);
+
+        if (!in_array('client_new_claim', $permissions, true)) {
+            abort(response()->json(['message' => 'Unauthorized action'], 403));
         }
-        $data['status'] = "Pending Denial";
-        $claimModel = new Claim();
-        $data['matched_claims'] = $claimModel->adminGetClaimsListNoLimit($data);
-        $claimUnmatchedModel = new ClaimUnmatched();
-        $data['unmatched_claims'] = $claimUnmatchedModel->adminGetClaimsListNoLimit($data);
-        return response()->json(['data' => $data], 200);
     }
 
-    public function getStoreInfo($data, $store_id)
+    protected function processInput($request): array
     {
-        $user = auth('admin')->user();
-        $data['alevel'] = $user->level;
-        $data['admin_id'] = $user->id;
-        $store = DB::table('osis_store')->where('id', $store_id)->orderBy('store_name', 'asc')->first();
-        return response()->json(['store' => $store], 200);
+        $validated = $request->validate([
+            'email' => 'required|email:rfc,strict',
+            'claim_amount' => 'required|numeric|min:0',
+            'description' => 'required|string',
+            'extra_info' => 'nullable|string',
+            'paid_to' => 'nullable|string',
+            'comments' => 'nullable|string',
+            'order_id' => 'nullable|integer',
+            'claimant_supplied_payment' => 'nullable|integer',
+            'order_number' => 'nullable|string|max:45',
+            'tracking_number' => 'nullable|string|max:255',
+            'carrier' => 'nullable|string|max:45',
+            'merchant_name' => 'nullable|string|max:45',
+            'merchant_id' => 'nullable|string|max:45',
+            'first_name' => 'required_without:customer_name',
+            'last_name' => 'required_without:customer_name',
+            'phone' => 'nullable|string|max:45',
+            'date_of_issue' => 'nullable|date',
+            'ship_date' => 'nullable|date',
+            'delivery_date' => 'nullable|date',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'payment_type' => 'nullable|string|in:Check,Credit Card,PayPal,Bank Transfer',
+            'currency' => 'nullable|string|max:45',
+            'order_address1' => 'nullable|string|max:255',
+            'order_address2' => 'nullable|string|max:255',
+            'order_city' => 'nullable|string|max:45',
+            'order_state' => 'nullable|string|max:45',
+            'order_zip' => 'nullable|string|max:45',
+            'order_country' => 'nullable|string|max:45',
+            'mailing_address1' => 'nullable|string|max:255',
+            'mailing_address2' => 'nullable|string|max:255',
+            'mailing_city' => 'nullable|string|max:45',
+            'mailing_state' => 'nullable|string|max:45',
+            'mailing_zip' => 'nullable|string|max:45',
+            'mailing_country' => 'nullable|string|max:45',
+            'issue_type' => 'nullable|string|max:45',
+            'items_purchased' => 'nullable|string',
+            'electronic_notice' => 'nullable|boolean'
+        ]);
+
+        return array_merge($validated, [
+            'client_id' => $request->user()->client_id,
+            'subclient_id' => $request->user()->subclient_id ?? null,
+            'source' => 'Web-Client',
+            'claim_type' => $request->filled('order_id') ? 'shipping_insurance' : null,
+            'customer_name' => $this->getCustomerName($validated),
+            'status' => 'Claim Received',
+            'file_ip_address' => $request->ip(),
+            'filed_date' => now(),
+            'amount_to_pay_out' => abs($validated['claim_amount']),
+            'claim_key' => $this->generateUniqueClaimKey(),
+            'electronic_notice' => $validated['electronic_notice'] ?? true,
+            'payment_type' => $validated['payment_type'] ?? 'Check',
+            'created' => now(),
+            'updated' => now()
+        ]);
     }
 
-    public function exportClaimsSubmit($data)
+    protected function getCustomerName(array $data): string
     {
-        $admin = auth('admin')->user();
-        $admin_id = $admin->id;
-
-        if (empty($data['file_fields']) || count($data['file_fields']) <= 0) {
-            return response()->json(['message' => 'No fields selected'], 400);
+        if (isset($data['customer_name'])) {
+            return substr($data['customer_name'], 0, 45);
         }
 
-        // Clean up data
-        foreach (['client_id', 'subclient_id', 'superclient_id'] as $field) {
-            if (isset($data[$field]) && $data[$field] <= 0) {
-                unset($data[$field]);
+        $fullName = trim($data['first_name'] . ' ' . $data['last_name']);
+        return substr($fullName, 0, 45);
+    }
+
+    protected function createClaim(array $data): Claim|ClaimUnmatched
+    {
+        $model = $this->resolveClaimModel($data['order_id'] ?? null);
+        return $model::create($data);
+    }
+
+    protected function createClaimLink($claim): ClaimLink
+    {
+        $relation = $claim instanceof Claim ? 'matched_claim_id' : 'unmatched_claim_id';
+        return ClaimLink::create([$relation => $claim->id]);
+    }
+
+    protected function sendConfirmation($claim, MailConfigurationService $mailerService, int $claimLinkId): void
+    {
+        $mailer = $mailerService->getFullMailerByDomain();
+
+        Mail::mailer($mailer['mailer'])
+            ->to($claim->email)
+            ->send(new ClaimSubmitted(
+                claim: $claim,
+                config: $mailer,
+                displayedClaimId: $claimLinkId
+            ));
+    }
+
+    protected function addSystemMessage($claim, string $message, string $type): void
+    {
+        $messageData = [
+            'claim_id' => $claim->id,
+            'message' => $message,
+            'type' => $type,
+            'created' => now(),
+            'updated' => now()
+        ];
+
+        $table = $claim instanceof Claim
+            ? 'osis_claim_message'
+            : 'osis_claim_unmatched_message';
+
+        DB::table($table)->insert($messageData);
+    }
+    public function resolveClaimModel(?string $orderId): string
+    {
+        return !empty($orderId) ? Claim::class : ClaimUnmatched::class;
+    }
+
+    public function generateUniqueClaimKey(): string
+    {
+        do {
+            $key = Str::random(40);
+        } while (
+            Claim::where('claim_key', $key)->exists() ||
+            ClaimUnmatched::where('claim_key', $key)->exists()
+        );
+
+        return $key;
+    }
+
+    ///////////////////////////////////// Get Claims ////////////////////////////////////////////////////
+
+    public function getClaimsList($request)
+    {
+        $clientId = auth('client')->user();
+        $matchedCount = DB::table('osis_claim_type_link as a')
+            ->join('osis_claim as b', 'a.matched_claim_id', 'b.id')
+            ->where('b.client_id', $clientId)
+            ->count('a.id');
+
+        $unmatchedCount = DB::table('osis_claim_type_link as a')
+            ->join('osis_claim_unmatched as c', 'a.unmatched_claim_id', 'c.id')
+            ->where('c.client_id', $clientId)
+            ->count('a.id');
+
+        $total = $matchedCount + $unmatchedCount;
+
+        $baseQuery = DB::table('osis_claim_type_link as a')
+            ->select([
+                'a.id as master_claim_id',
+                'a.matched_claim_id',
+                'a.unmatched_claim_id',
+                DB::raw('COALESCE(b.client_id, c.client_id) as client_id'),
+                DB::raw('COALESCE(b.subclient_id, c.subclient_id) as subclient_id'),
+                DB::raw('COALESCE(b.order_number, c.order_number) as order_number'),
+                DB::raw('COALESCE(b.claim_amount, c.claim_amount, 0) as claim_amount'),
+                DB::raw('COALESCE(b.customer_name, c.customer_name) as customer_name'),
+                DB::raw('COALESCE(b.status, c.status) as status'),
+                DB::raw('COALESCE(b.filed_date, c.filed_date) as filed_date'),
+            ])
+            ->leftJoin('osis_claim as b', 'a.matched_claim_id', '=', 'b.id')
+            ->leftJoin('osis_claim_unmatched as c', 'a.unmatched_claim_id', '=', 'c.id')
+            ->leftJoin('osis_subclient as sc_b', 'b.subclient_id', '=', 'sc_b.id')
+            ->leftJoin('osis_subclient as sc', DB::raw('COALESCE(b.subclient_id, c.subclient_id)'), '=', 'sc.id')
+            ->addSelect('sc.name as subclient_name')->where('b.client_id', $clientId)->orWhere('c.client_id', $clientId);
+
+        $this->applyFilters($baseQuery, $request);
+        $perPage = $request['per_page'] ?? 20;
+        $claims = $baseQuery->simplePaginate($perPage);
+
+        return response()->json([
+            'data' => $claims->items(),
+            'total' => $total,
+            'current_page' => $claims->currentPage(),
+            'per_page' => $claims->perPage()
+        ]);
+    }
+
+    protected function applyFilters($query, array $filters): void
+    {
+        // Date range filters
+        if (!empty($filters['start_date'])) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('b.created', '>=', $filters['start_date'])
+                    ->orWhere('c.created', '>=', $filters['start_date']);
+            });
+        }
+
+        if (!empty($filters['end_date'])) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('b.created', '<=', $filters['end_date'])
+                    ->orWhere('c.created', '<=', $filters['end_date']);
+            });
+        }
+
+        // Text search filters
+        $this->applyTextFilters($query, $filters);
+
+        if (!empty($filters['claim_id'])) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('a.id', $filters['claim_id'])
+                    ->orWhere('a.matched_claim_id', $filters['claim_id'])
+                    ->orWhere('a.unmatched_claim_id', $filters['claim_id']);
+            });
+        }
+        // Sorting
+        $this->applySorting($query, $filters);
+    }
+    protected function applyTextFilters($query, array $filters): void
+    {
+        $textFilters = [
+            'order_number' => '=',
+            'tracking_number' => '=',
+            'claimant_name' => 'LIKE',
+            'email' => 'LIKE',
+        ];
+
+        foreach ($textFilters as $field => $operator) {
+            if (!empty($filters[$field])) {
+                $value = $operator === 'LIKE'
+                    ? "%{$filters[$field]}%"
+                    : $filters[$field];
+
+                $query->where(function ($q) use ($field, $operator, $value) {
+                    $q->where("b.{$field}", $operator, $value)
+                        ->orWhere("c.{$field}", $operator, $value);
+                });
             }
         }
-
-        if (empty($data['admin_id']) || $data['admin_id'] == 0) {
-            unset($data['admin_id']);
-        }
-
-        $claimModel = new Claim();
-        $results['claims'] = $claimModel->adminClaimExportFull($data);
-
-        $date = now()->format('Y-m-d');
-        $rand = Str::random(32);
-        $files = [];
-
-        if (!empty($results['claims'])) {
-            $filename = "Claims-Export-{$date}-{$rand}";
-            $directory = storage_path('app/public/claims_export/');
-
-            if (!File::exists($directory)) {
-                File::makeDirectory($directory, 0755, true);
-            }
-
-            $handle = fopen($directory . $filename . '.csv', 'w');
-
-            // Write headers
-            $headers = collect($data['file_fields'])->map(function ($export_field) {
-                $file_field = $this->export_headers[$export_field];
-                return is_array($file_field) ? implode(',', $file_field) : $file_field;
-            })->join(',');
-
-            fwrite($handle, $headers . "\r\n");
-
-            // Write data
-            foreach ($results['claims'] as $claim) {
-                $line = collect($data['file_fields'])->map(function ($export_field) use ($claim) {
-                    $file_field = $this->export_fields[$export_field];
-
-                    if (is_array($file_field)) {
-                        return collect($file_field)->map(function ($field) use ($claim) {
-                            return '"' . ($claim[$field] ?? '') . '"';
-                        })->join(',');
-                    }
-
-                    return '"' . ($claim[$file_field] ?? '') . '"';
-                })->join(',');
-
-                fwrite($handle, $line . "\r\n");
-            }
-
-            fclose($handle);
-            $files[] = $filename;
-        }
-
-        if (count($files) <= 0) {
-            return response()->json(['message' => 'No files created'], 400);
-        }
-
-        return response()->json(['files' => $files], 200);
     }
 
+    protected function applySorting($query, array $filters): void
+    {
+        $sortField = $filters['sort_field'] ?? 'a.created';
+        $sortDirection = $filters['sort_direction'] ?? 'desc';
 
+        // Special handling for claim_id sorting
+        if ($sortField === 'claim_id') {
+            $sortField = 'a.created';
+        }
 
+        $query->orderBy($sortField, $sortDirection);
+    }
+
+    ///////////////////////////////////////////// Claim Detail ///////////////////////////////////////////////
     public function detail($claim_id)
     {
-        $claimLink = ClaimLink::where('matched_claim_id', $claim_id)
-            ->orWhere('unmatched_claim_id', $claim_id)
-            ->firstOrFail();
+        $claimLink = ClaimLink::where('id', $claim_id)->firstOrFail();
 
         if ($claimLink->matched_claim_id == $claim_id) {
             $claimLink->load([
@@ -286,241 +348,4 @@ class ClaimsService
         return new ClaimDetailResource($claim);
     }
 
-
-    public function update($data, $claim_id)
-    {
-
-        if (!empty($data['admin_id']) && $data['admin_id'] < 0) {
-            $data['admin_id'] = 0;
-        }
-
-        $claim = DB::table('osis_claim')->where('id', $claim_id)->get()->toArray();
-        $arr = array('unread' => 0);
-        $claimModel = new Claim();
-        $claimModel->claim_update($claim_id, $arr);
-        $claim_link = DB::table('osis_claim_type_link')->where('matched_claim_id', $claim_id)->get()->toArray();
-        $order = DB::table('osis_order')->where('id', $claim['order_id'])->get()->toArray();
-        $statuses = [
-            'Pending Denial',
-            'Denied',
-            'Closed',
-            'Closed - Paid',
-            'Closed - Denied',
-            $data['previous_status']
-        ];
-        //? Temporary solution, consider email_timeout="-2" as a DB based toggle
-        $disable_claims_emails = [
-            // '88802', //* Internal Test
-            '95280', //* AfterShip
-            '95281', //* AfterShip Test
-            // '91915', //* EasyShip
-            // '91916', //* EasyShip Test
-        ];
-        if (!empty($data['status'])) {
-            if (!in_array($data['status'], $statuses) && !empty($claim['email']) && !in_array($claim['client_id'], $disable_claims_emails)) {
-                // status has changed, fire off email
-
-                $superclient_id = DB::table('osis_client')->where('id', $claim['client_id'])->pluck('superclient_id')->toArray();
-                $mymailer = MyMailer::getMailerBySuperclientClientSubclientID($claim['client_id'], $claim['subclient_id'], $superclient_id['superclient_id']);
-                $offer_model = new Offer();
-                $offer_id = $offer_model->get_offer_id_by_claim_id($claim_id);
-                if ($offer_id > 0) {
-                    $offer = DB::table('osis_offer')->where('id', $offer_id)->get()->toArray();
-                    $claim_type = $offer['name'];
-                } else {
-                    $claim_type = $mymailer['company_name'];
-                }
-
-                $email_vars = array(
-                    'from_email' => $mymailer['email'],
-                    'to_email' => $claim['email'],
-                    'file_date' => $claim['created'],
-                    'domain' => config('app.this_domain'),
-                    'subject' => 'The status on your ' . $mymailer['company_name'] . ' claim has changed!',
-                    'type' => 'status_change',
-                    'claim_type' => $claim_type,
-                    'status' => $data['status'],
-                    'claim_id' => $claim_id,
-                    'old_claim_id' => $claim['old_claim_id'],
-                    'order_key' => $order['order_key'],
-                    'client_id' => $order['client_id']
-                );
-
-                if (isset($claim_link['id']) && !empty($claim_link['id'])) {
-                    $email_vars['claim_link_id'] = $claim_link['id'];
-                }
-
-                if (in_array($order['client_id'], Claim::$use_claim_link_id_client_id)) {
-                    $displayed_claim_id = $claim_link['id'];
-                } elseif (!empty($claim['old_claim_id'])) {
-                    $displayed_claim_id = $claim['old_claim_id'];
-                } else {
-                    $displayed_claim_id = $claim_id;
-                }
-
-                $email_vars['displayed_claim_id'] = $displayed_claim_id;
-
-                $email_vars = array_merge($email_vars, $mymailer);
-                if (!empty($_POST['send_email'])) {
-
-
-                    Mail::send([], [], function ($message) use ($email_vars) {
-                        $message->subject($email_vars['subject'])
-                            ->from($email_vars['from_email'])
-                            ->to($email_vars['to_email'])
-                            ->setBody(
-                                'The status has changed to ' . $email_vars['status'] . '.',
-                                'text/html'
-                            );
-
-                        $headers = $message->getSymfonyMessage()->getHeaders();
-                        $headers->addTextHeader('X-SMTPAPI', json_encode(['unique_args' => ['claim_id' => $email_vars['claim_id']]]));
-                    });
-                }
-            }
-
-
-            $params = array('subclient_id' => $claim['subclient_id'], 'client_id' => $claim['client_id'], 'action' => 'claim_status_change');
-
-            $payload_array = array(
-                'subclient_id' => $claim['subclient_id'],
-                'claim_id' => $claim_link['id'],
-                'policy_id' => $claim['order_id'],
-                'order_number' => $claim['order_number'],
-                'status' => $data['status'],
-                'filed' => date("Y-m-d", strtotime($claim['filed_date'])),
-            );
-
-            if ($claim['client_id'] == 56858) { // TicketGuardian
-                unset($payload_array['customer_name']);
-                unset($payload_array['email']);
-                //unset($payload_array['status']);
-                unset($payload_array['order_number']);
-                unset($payload_array['filed']);
-
-                $order_extra = DB::table('osis_order_extra_info')->where('order_id', $order['id'])->get()->toArray();
-
-                if (!empty($order_extra) && !empty($order_extra['tg_policy_id'])) {
-                    $payload_array['tg_policy_id'] = $order_extra['tg_policy_id'];
-                }
-            }
-
-            $payload = json_encode($payload_array);
-
-            $skip_webhook = [
-                'Pending Denial',
-            ];
-
-            if (!in_array($data['status'], $skip_webhook)) {
-                $webhook_model = new Webhook();
-                $webhook_model->fire($params, $payload);
-            }
-
-            // Claim payment done manually
-            if ($data['previous_status'] == "Approved" && $data['status'] == "Paid") {
-                // need to mark claim payment as Paid
-
-                $claim_payment = DB::table('osis_claim_payment')->where('claim_link_id', $claim_link['id'])->get()->toArray();
-
-                $temp = array("status" => "Paid");
-                $claimPaymentModel = new ClaimPayment();
-                $claimPaymentModel->claim_payment_update($claim_payment['id'], $temp);
-            }
-            if ($data['status'] != $data['previous_status'] && $data['status'] == 'Claim Received') {
-                $data['filed_date'] = date("Y-m-d H:i:s");
-            }
-            if ($data['status'] != $data['previous_status'] && $data['status'] == 'Under Review') {
-                $data['under_review_date'] = date("Y-m-d H:i:s");
-            }
-            if ($data['status'] != $data['previous_status'] && $data['status'] == 'Waiting On Documents') {
-                $data['wod_date'] = date("Y-m-d H:i:s");
-            }
-            if ($data['status'] != $data['previous_status'] && $data['status'] == 'Completed') {
-                $data['completed_date'] = date("Y-m-d H:i:s");
-            }
-            if ($data['status'] != $data['previous_status'] && $data['status'] == 'Approved') {
-                $data['approved_date'] = date("Y-m-d H:i:s");
-            }
-            if ($data['status'] != $data['previous_status'] && $data['status'] == 'Pending Denial') {
-                $data['pending_denial_date'] = date("Y-m-d H:i:s");
-            }
-            if ($data['status'] != $data['previous_status'] && $data['status'] == 'Denied') {
-                $params = array('subclient_id' => $claim['subclient_id'], 'client_id' => $claim['client_id'], 'action' => 'claim_denied');
-
-                $payload_array = array(
-                    'subclient_id' => $claim['subclient_id'],
-                    'claim_id' => $claim_link['id'],
-                    'policy_id' => $claim['order_id'],
-                    'order_number' => $claim['order_number'],
-                    'status' => $data['status'],
-                    'filed' => $claim['filed_date']
-                );
-
-                if ($claim['client_id'] == 56858) { // TicketGuardian
-                    unset($payload_array['customer_name']);
-                    unset($payload_array['email']);
-                    //unset($payload_array['status']);
-                    unset($payload_array['order_number']);
-                    unset($payload_array['filed']);
-
-                    $order_extra = DB::table('osis_order_extra_info')->where('order_id', $order['id'])->get()->toArray();
-
-                    if (!empty($order_extra) && !empty($order_extra['tg_policy_id'])) {
-                        $payload_array['tg_policy_id'] = $order_extra['tg_policy_id'];
-                    }
-                }
-
-                $payload = json_encode($payload_array);
-
-                $webhook_model = new Webhook();
-                $webhook_model->fire($params, $payload);
-
-                $data['denied_date'] = date("Y-m-d H:i:s");
-            }
-
-            if ($data['status'] != $data['previous_status'] && $data['status'] == 'Paid') {
-                $data['paid_date'] = date("Y-m-d H:i:s");
-            }
-
-            if ($data['status'] != $data['previous_status'] && ($data['status'] == 'Closed' || $data['status'] == 'Closed - Paid' || $data['status'] == 'Closed - Denied')) {
-                $data['closed_date'] = date("Y-m-d H:i:s");
-            }
-
-            if ($data['status'] != $data['previous_status'] && $data['status'] != "Closed" && ($data['previous_status'] == 'Approved' || $data['previous_status'] == "Paid")) {
-                // taken out of the Approved pile
-                $claim_payment_model =  DB::table('osis_claim_payment')->where('claim_link_id', $claim_link['id'])->delete();
-            }
-            $claim_model = new Claim();
-            $claim_model->claim_update($claim_id, $data);
-            return response()->json(['status' => 'updated'], 200);
-        }
-    }
-
-
-    public function updatePolicyID($data, $claim_id)
-    {
-        $admin = auth('admin')->user();
-        $data['admin_id'] = $admin->id;
-        $offerModel = new Offer();
-        $claim_model = new Claim();
-        if (empty($data['policy_id']) || empty($data['offer_type'])) {
-            return response()->json(['message' => 'You must provide a new policy ID and the offer for the claim.'], 400);
-        }
-        if ($claim_model->already_filed($data['policy_id'], $data['offer_type'])) {
-            return response()->json(['message' => 'A claim of this type has already been filed.'], 400);
-        }
-        $old_order_offer_id = DB::table('osis_order_offer')->where('claim_id', $claim_id)->value('id');
-        $offerModel = DB::table('osis_order_offer')->where('id', $old_order_offer_id)->update(['claim_id' => null]);
-
-        $offerModel = new Offer();
-        $order_offer_id = $offerModel->get_id_by_order_id_and_claim_type($data['policy_id'], $data['offer_type']);
-        DB::table('osis_order_offer')->where('id', $order_offer_id)->update(['claim_id' => $claim_id]);
-
-        $order = DB::table('osis_order')->where('id', $data['policy_id'])->first();
-
-        $params = array('order_id' => $data['policy_id'], 'client_id' => $order['client_id'], 'subclient_id' => $order['subclient_id']);
-        $claim_model->claim_update($claim_id, $params);
-
-        return response()->json(['message' => 'Policy ID updated successfully.'], 200);
-    }
 }

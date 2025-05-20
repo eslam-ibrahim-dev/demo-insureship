@@ -3,68 +3,70 @@
 namespace App\Http\Controllers\Admin\Claims;
 
 use App\Services\Admin\Claims\ClaimsService;
-use App\Services\Admin\Claims\ClaimServicePartTwo;
-use App\Services\Admin\Claims\ClaimServicePartThree;
-use App\Services\Admin\Claims\ClaimServicePartFour;
-use App\Services\Admin\Claims\ClaimServicePartFive;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Http\Requests\ExportClaimsRequest;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\Response;
+
 
 class ClaimsController extends Controller
 {
     protected $claimsService;
-    public function __construct(ClaimsService $claimsService ){
+    public function __construct(ClaimsService $claimsService)
+    {
         $this->claimsService = $claimsService;
-    }    
-    public function getClaimsData(Request $request){
+    }
+    public function getClaimsData(Request $request)
+    {
         $data = $request->all();
         $returnedData = $this->claimsService->getClaimsData($data);
         return $returnedData;
     }
 
-    public function completedClaimsPage(Request $request){
-        $vars = $request->all();
-        $returnedData = $this->claimsService->completedClaimsPage($vars);
-        return $returnedData;
+    public function getClaimExportFull(ExportClaimsRequest $request): Response
+    {
+        $filters    = $request->validated();
+        $fileFields = $filters['file_fields'];
+
+        // Ensure directory exists
+        Storage::disk('public')->makeDirectory('claims_exports');
+        // Unique filename
+        $filename = 'claims_export_' . now()->format('Ymd_His') . '_' . uniqid() . '.csv';
+        $path     = "claims_exports/{$filename}";
+
+        // Open stream
+        $fullPath = Storage::disk('public')->path($path);
+        $fp = fopen($fullPath, 'w');
+
+        // Header row
+        $headers = $this->claimsService->mapHeaders($fileFields);
+        fputcsv($fp, $headers);
+
+        // Chunked data write
+        $this->claimsService
+            ->buildQuery($filters)
+            ->orderBy('a.id')
+            ->chunk(500, function ($claims) use ($fp, $fileFields) {
+                foreach ($claims as $claim) {
+                    $row = $this->claimsService->mapRow($claim, $fileFields);
+                    fputcsv($fp, $row);
+                }
+            });
+
+        fclose($fp);
+
+        $url = Storage::disk('public')->url($path);
+        return response()->json([
+            'download_url' => $url,
+        ], 200);
     }
 
-    public function pendingDenialClaimsPage(Request $request){
-        $vars = $request->all();
-        $returnedData = $this->claimsService->pendingDenialClaimsPage($vars);
-        return $returnedData;
-    }
-
-    public function getStoreInfo(Request $request , $store_id){
-        $data = $request->all();
-        $returnedData = $this->claimsService->getStoreInfo($data , $store_id);
-        return $returnedData;
-    }
-
-
-
-    public function exportClaimsSubmit(Request $request){
-        $data = $request->all();
-        $returnedData = $this->claimsService->exportClaimsSubmit($data);
-        return $returnedData;
-    }
-
-
-    public function detailPage( $claim_id){
+    public function detailPage($claim_id)
+    {
         $returnedData = $this->claimsService->detail($claim_id);
         return $returnedData;
     }
 
-
-    public function update(Request $request , $claim_id){
-        $data = $request->all();
-        $returnedData = $this->claimsService->update($data , $claim_id);
-        return $returnedData;
-    }
-
-    public function updatePolicyID(Request $request , $claim_id){
-        $data = $request->all();
-        $returnedData = $this->claimsService->updatePolicyID($data , $claim_id);
-        return $returnedData;
-    }
-
+    
 }
