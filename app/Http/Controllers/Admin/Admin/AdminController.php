@@ -74,4 +74,10 @@ class AdminController extends Controller
       return response()->json(['status' => 'failed'], 200);
     }
   }
+
+  public function getClaimsAgent()
+  {
+    $admins = $this->adminServices->getClaimsAgent();
+    return $admins;
+  }
 }

@@ -75,6 +75,7 @@ class Claim extends Model
         'updated'
     ];
 
+    const USE_CLAIM_LINK_ID_CLIENT_IDS = [56868];
     public $timestamps = false;
 
     const CREATED_AT = 'created';

@@ -39,6 +39,16 @@ class AdminService
             'data' => $admins
         ]);
     }
+    public function getClaimsAgent()
+    {
+        $admins = Admin::where('status', 'Active')
+            ->whereIn('level', ['Claims Admin', 'Claims Agent'])
+            ->get(['id', 'name', 'level', 'status']);
+        return response()->json([
+            'status' => 'success',
+            'data' => $admins
+        ]);
+    }
 
     public function updateSettings($userId, $password)
     {

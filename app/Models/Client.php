@@ -43,6 +43,10 @@ class Client extends Model
         'updated'
     ];
 
+     public function superclient()
+    {
+        return $this->belongsTo(Superclient::class, 'superclient_id', 'id');
+    }
     public function getAllRecords($user)
     {
         $query = DB::table($this->table)->orderBy('name', 'asc');

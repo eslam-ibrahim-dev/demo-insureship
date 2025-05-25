@@ -30,28 +30,6 @@ class ClaimPayment extends Model
         'paid_date',
         'created',
     ];
-    public $fields = array(
-        'id',
-        'claim_link_id',
-        'payment_type',
-        'payment_name',
-        'address1',
-        'address2',
-        'city',
-        'state',
-        'zip',
-        'country',
-        'bank_name',
-        'bank_country',
-        'bank_account_number',
-        'bank_routing_number',
-        'bank_swift_code',
-        'amount',
-        'currency',
-        'status',
-        'paid_date',
-        'created',
-    );
 
     protected $table = "osis_claim_payment";
 
@@ -70,16 +48,7 @@ class ClaimPayment extends Model
             ->update($updates_arr);
     }
 
-    public function savePayment(&$data)
-    {
-        $payment = DB::table('payments')->where('claim_link_id', $data['claim_link_id'])->first();
-
-        if ($payment) {
-            DB::table('payments')->where('id', $payment->id)->delete();
-        }
-
-        DB::table('payments')->insert($data);
-    }
+    
 
     public function get_by_claim_link_id($claim_link_id)
     {

@@ -13,15 +13,8 @@ class SuperclientController extends Controller
         $this->superclientService = $superclientService;
     }
 
-    public function indexPage(Request $request){
-        $data = $request->all();
-        $returnedData = $this->superclientService->indexPage($data);
-        return $returnedData;
-    }
-
-    public function listPage(Request $request){
-        $data = $request->all();
-        $returnedData = $this->superclientService->listPage($data);
+    public function indexPage(){
+        $returnedData = $this->superclientService->index();
         return $returnedData;
     }
 

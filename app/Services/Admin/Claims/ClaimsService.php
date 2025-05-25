@@ -13,8 +13,10 @@ use App\Models\Offer;
 use App\Models\MyMailer;
 use App\Models\Webhook;
 use App\Models\ClaimPayment;
+use App\Services\MailerService;
 use Illuminate\Support\Str;
 use App\Models\ClaimUnmatched;
+use App\Models\Store;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request;
 use Symfony\Component\Intl\Countries;
@@ -22,6 +24,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 
 class ClaimsService
@@ -396,4 +399,532 @@ class ClaimsService
         }
         return $mapped;
     }
+
+    /////////////////////////////////////////// approve claim /////////////////////////////////////
+    public function approveClaim($data, $claimId, $isUnmatched = false): JsonResponse
+    {
+        $user = auth('admin')->user();
+        $admin = Admin::findOrFail($user->id);
+
+        // Get claim with appropriate relationships
+        $claim = $isUnmatched
+            ? ClaimUnmatched::findOrFail($claimId)
+            : Claim::with('order')->findOrFail($claimId);
+
+        $order = $isUnmatched ? null : $claim->order;
+
+        // Get claim link based on claim type
+        $claimLink = $isUnmatched
+            ? ClaimLink::where('unmatched_claim_id', $claimId)->firstOrFail()
+            : ClaimLink::where('matched_claim_id', $claimId)->firstOrFail();
+
+        // Update claim status
+        $claim->update([
+            'unread' => 0,
+            'status' => 'Approved',
+            'approved_date' => now(),
+        ]);
+
+        // Process payment
+        $paymentParams = $this->processPayment(
+            $data,
+            $claimLink->id,
+            $claim->client_id,
+            $order,
+            $claim,
+            $isUnmatched
+        );
+
+        // Save payment
+        ClaimPayment::updateOrCreate(
+            ['claim_link_id' => $claimLink->id],
+            $paymentParams
+        );
+
+        // Send email notification
+        // $this->sendApprovalEmail($claim, $order, $claimLink, $isUnmatched);
+
+        // Trigger webhook
+        $this->triggerWebhook($claim, $order, $claimLink, $data, $isUnmatched);
+
+        // Add admin note
+        $claim->messages()->create([
+            'message' => "Claim Approved by: {$admin->name}",
+            'type' => 'Internal Note',
+            'admin_id' => $admin->id,
+        ]);
+
+        return response()->json(['status' => 'updated']);
+    }
+
+    protected function processPayment(
+        array $data,
+        int $claimLinkId,
+        int $clientId,
+        $order,
+        $claim,
+        bool $isUnmatched = false
+    ): array {
+        $paymentParams = [
+            'claim_link_id' => $claimLinkId,
+            'client_id' => $clientId,
+            'amount' => $data['amount_to_pay'],
+            'currency' => $data['currency'],
+            'payment_name' => $data['paid_to'] ?? $data['payment_name'] ?? null,
+            'status' => $isUnmatched ? 'Pending' : null,
+        ];
+
+        switch ($data['type']) {
+            case 'paypal':
+                $paymentParams['payment_type'] = 'Paypal';
+                break;
+
+            case 'ach':
+            case 'wire':
+                $paymentParams['payment_type'] = strtoupper($data['type']);
+                $paymentParams += [
+                    'bank_name' => $data['bank_name'],
+                    'bank_country' => $data['bank_country'],
+                    'bank_account_number' => $data['bank_account_number'],
+                    'bank_routing_number' => $data['bank_routing_number'],
+                    'bank_swift_code' => $data['bank_swift_code'],
+                ];
+                break;
+
+            case 'check':
+                $paymentParams['payment_type'] = 'Check';
+                $paymentParams += $this->getCheckAddress($data, $order, $claim, $isUnmatched);
+                break;
+
+            case 'other':
+                if ($isUnmatched) {
+                    $paymentParams['payment_type'] = 'Other';
+                }
+                break;
+
+            default:
+                abort(400, 'Invalid payment type');
+        }
+
+        return $paymentParams;
+    }
+
+    protected function getCheckAddress(
+        array $data,
+        $order,
+        $claim,
+        bool $isUnmatched = false
+    ): array {
+        $addressFields = ['address1', 'address2', 'city', 'state', 'zip', 'country'];
+        $address = [];
+
+        switch ($data['address_type']) {
+            case 'shipping_address':
+                if ($isUnmatched) {
+                    foreach ($addressFields as $field) {
+                        $address[$field] = $order->{'shipping_' . $field};
+                    }
+                }
+                break;
+
+            case 'billing_address':
+                if ($isUnmatched) {
+                    foreach ($addressFields as $field) {
+                        $address[$field] = $order->{'billing_' . $field};
+                    }
+                }
+                break;
+
+            case 'claim_address':
+                foreach ($addressFields as $field) {
+                    $address[$field] = $claim->{'order_' . $field};
+                }
+                break;
+
+            case 'claimant_address':
+                foreach ($addressFields as $field) {
+                    $address[$field] = $claim->{'mailing_' . $field};
+                }
+                break;
+
+            case 'other_mailing_address':
+            case 'store_address':
+            case 'new_store_address':
+                foreach ($addressFields as $field) {
+                    $prefix = $data['address_type'] === 'other_mailing_address'
+                        ? 'other_'
+                        : ($data['address_type'] === 'new_store_address' ? 'new_' : 'store_');
+                    $address[$field] = $data[$prefix . $field];
+                }
+
+                if ($data['address_type'] === 'store_address' && ($data['store_update'] ?? false)) {
+                    $this->updateStore($data);
+                }
+
+                if ($data['address_type'] === 'new_store_address') {
+                    $this->createNewStore($data);
+                }
+                break;
+
+            default:
+                abort(400, 'Invalid address type');
+        }
+
+        return $address;
+    }
+
+    protected function updateStore(array $data): void
+    {
+        Store::where('id', $data['store_id'])->update([
+            'store_name' => $data['store_store_name'],
+            'name' => $data['store_name'],
+            'address1' => $data['store_address1'],
+            'address2' => $data['store_address2'],
+            'city' => $data['store_city'],
+            'state' => $data['store_state'],
+            'zip' => $data['store_zip'],
+            'country' => $data['store_country'],
+        ]);
+    }
+
+    protected function createNewStore(array $data): void
+    {
+        Store::create([
+            'store_name' => $data['new_store_name'],
+            'name' => $data['new_name'],
+            'address1' => $data['new_address1'],
+            'address2' => $data['new_address2'],
+            'city' => $data['new_city'],
+            'state' => $data['new_state'],
+            'zip' => $data['new_zip'],
+            'country' => $data['new_country'],
+        ]);
+    }
+
+    // protected function sendApprovalEmail($claim, $order, $claimLink, bool $isUnmatched = false
+    // ): void {
+    //     $client = Client::find($claim->client_id);
+    //     $superclientId = $client->superclient_id;
+
+    //     $mailerConfig = MailerService::bySuperclientClientSubclientId(
+    //         $claim->client_id,
+    //         $isUnmatched ? 0 : $claim->subclient_id,
+    //         $superclientId
+    //     );
+
+    //     if (!$isUnmatched) {
+    //         $offer = Offer::where('claim_id', $claim->id)->first();
+    //         $claimType = $offer ? $offer->name : $mailerConfig['company_name'];
+    //     } else {
+    //         $claimType = $mailerConfig['company_name'];
+    //     }
+
+    //     $displayedClaimId = $this->getDisplayedClaimId($claim, $order, $claimLink, $isUnmatched);
+
+    //     $emailVars = [
+    //         'from_email' => $mailerConfig['email'],
+    //         'to_email' => $claim->email,
+    //         'file_date' => $claim->created_at,
+    //         'domain' => config('app.domain'),
+    //         'subject' => 'The status on your ' . $mailerConfig['company_name'] . ' claim has changed!',
+    //         'type' => 'status_change',
+    //         'claim_type' => $claimType,
+    //         'status' => 'Approved',
+    //         'claim_id' => $claim->id,
+    //         'old_claim_id' => $claim->old_claim_id,
+    //         'client_id' => $isUnmatched ? $claim->client_id : $order->client_id,
+    //         'displayed_claim_id' => $displayedClaimId,
+    //         'claim_link_id' => $claimLink->id,
+    //     ];
+
+    //     if ($isUnmatched) {
+    //         $emailVars['unmatched'] = 1;
+    //         $emailVars['claim_key'] = $claim->claim_key;
+    //     } else {
+    //         $emailVars['order_key'] = $order->order_key;
+    //     }
+
+    //     $emailVars = array_merge($mailerConfig, $emailVars);
+
+    //     Mail::to($emailVars['to_email'])
+    //         ->send(new ClaimStatusChanged($emailVars));
+    // }
+
+    protected function getDisplayedClaimId($claim, $order, $claimLink, bool $isUnmatched = false): string
+    {
+        if ($isUnmatched) {
+            if (in_array($claim->client_id, Claim::USE_CLAIM_LINK_ID_CLIENT_IDS)) {
+                return $claimLink->id;
+            }
+        } else {
+            if (in_array($order->client_id, Claim::USE_CLAIM_LINK_ID_CLIENT_IDS)) {
+                return $claimLink->id;
+            }
+        }
+
+        return $claim->old_claim_id ?: $claim->id;
+    }
+
+    protected function triggerWebhook($claim, $order, $claimLink, array $data, bool $isUnmatched = false): void
+    {
+        $payload = [
+            'client_id' => $claim->client_id,
+            'subclient_id' => $isUnmatched ? 0 : $claim->subclient_id,
+            'claim_id' => $claimLink->id,
+            'policy_id' => $isUnmatched ? 0 : $claim->order_id,
+            'customer_name' => $claim->customer_name,
+            'email' => $claim->email,
+            'payment_amount' => $data['amount_to_pay'] ?? 0,
+            'filed' => $claim->filed_date->format('Y-m-d'),
+            'validated' => now()->format('Y-m-d'),
+        ];
+
+        if ($claim->client_id == 56858) { // TicketGuardian
+            if (!$isUnmatched && $order && $order->extra && $order->extra->tg_policy_id) {
+                $payload['tg_policy_id'] = $order->extra->tg_policy_id;
+            }
+        } else {
+            $payload['order_number'] = $claim->order_number;
+        }
+
+        Webhook::dispatch([
+            'action' => 'claim_validated',
+            'client_id' => $claim->client_id,
+            'subclient_id' => $isUnmatched ? 0 : $claim->subclient_id,
+        ], json_encode($payload));
+    }
+
+    /////////////////////////////////// detail update ////////////////////////////////////////////////////
+    protected array $statusDateFields = [
+        'Claim Received' => 'filed_date',
+        'Under Review' => 'under_review_date',
+        'Waiting On Documents' => 'wod_date',
+        'Completed' => 'completed_date',
+        'Approved' => 'approved_date',
+        'Pending Denial' => 'pending_denial_date',
+        'Denied' => 'denied_date',
+        'Paid' => 'paid_date',
+        'Closed' => 'closed_date',
+        'Closed - Paid' => 'closed_date',
+        'Closed - Denied' => 'closed_date',
+    ];
+
+    protected array $skipWebhookStatuses = [
+        'Pending Denial'
+    ];
+
+    protected array $disableEmailsForClients = [
+        95280, // AfterShip
+        95281, // AfterShip Test
+    ];
+
+    public function updateClaim($request, $claimId, $isUnmatched = false): JsonResponse
+    {
+        $data = $request->all();
+        $user = auth('admin')->user();
+        $admin = Admin::findOrFail($user->id);
+
+        // Get claim with appropriate relationships
+        $claim = $isUnmatched
+            ? ClaimUnmatched::findOrFail($claimId)
+            : Claim::with('order')->findOrFail($claimId);
+
+        $order = $isUnmatched ? null : $claim->order;
+
+        // Get claim link based on claim type
+        $claimLink = $isUnmatched
+            ? ClaimLink::where('unmatched_claim_id', $claimId)->firstOrFail()
+            : ClaimLink::where('matched_claim_id', $claimId)->firstOrFail();
+
+
+        // Handle status changes
+        if (!empty($data['status'])) {
+            $this->handleStatusChange(
+                $data,
+                $claim,
+                $claimLink,
+                $order,
+                $isUnmatched
+            );
+        }
+
+        // Final claim update
+        $claim->update(array_merge(['unread' => 0], $data));
+
+        return response()->json(['status' => 'updated']);
+    }
+
+    protected function handleStatusChange(array &$data,$claim,$claimLink,$order,bool $isUnmatched): void {
+        if ($this->shouldProcessStatusChange($data, $claim)) {
+            // Update status date field
+            $this->updateStatusDateField($data);
+
+            // Handle email notification
+            // if ($this->shouldSendEmail($data, $claim)) {
+            //     $this->sendStatusChangeEmail(
+            //         $data,
+            //         $claim,
+            //         $claimLink,
+            //         $order,
+            //         $isUnmatched
+            //     );
+            // }
+
+            // Handle webhook
+            // if (!in_array($data['status'], $this->skipWebhookStatuses)) {
+            //     $this->triggerStatusChangeWebhook(
+            //         $data,
+            //         $claim,
+            //         $claimLink,
+            //         $order,
+            //         $isUnmatched
+            //     );
+            // }
+
+            // Handle payment status changes
+            $this->handlePaymentStatusChanges($data, $claimLink);
+
+            // Handle removal from claim payment
+            $this->handleRemovalFromPayment($data, $claimLink);
+        }
+    }
+
+    protected function shouldProcessStatusChange(array $data, $claim): bool
+    {
+        return $data['status'] != $data['previous_status']
+            && !in_array($data['status'], [
+                'Pending Denial',
+                'Denied',
+                'Closed',
+                'Closed - Paid',
+                'Closed - Denied'
+            ]);
+    }
+
+    protected function shouldSendEmail(array $data, $claim): bool
+    {
+        return !empty($claim->email)
+            && !in_array($claim->client_id, $this->disableEmailsForClients)
+            && !empty(request('send_email'));
+    }
+
+    protected function updateStatusDateField(array &$data): void
+    {
+        if (isset($this->statusDateFields[$data['status']])) {
+            $data[$this->statusDateFields[$data['status']]] = now();
+        }
+    }
+
+    // protected function sendStatusChangeEmail(array $data,$claim,$claimLink,$order,bool $isUnmatched): void {
+    //     $client = Client::find($claim->client_id);
+    //     $superclientId = $client->superclient_id;
+
+    //     $mailerConfig = MailerService::bySuperclientClientSubclientId(
+    //         $claim->client_id,
+    //         $isUnmatched ? 0 : $claim->subclient_id,
+    //         $superclientId
+    //     );
+
+    //     $emailVars = $this->prepareEmailVars(
+    //         $data,
+    //         $claim,
+    //         $claimLink,
+    //         $order,
+    //         $mailerConfig,
+    //         $isUnmatched
+    //     );
+
+    //     Mail::to($emailVars['to_email'])
+    //         ->send(new ClaimStatusChanged($emailVars));
+    // }
+
+    protected function prepareEmailVars(array $data,$claim,$claimLink,$order,array $mailerConfig,bool $isUnmatched
+    ): array {
+        $emailVars = [
+            'from_email' => $mailerConfig['email'],
+            'to_email' => $claim->email,
+            'file_date' => $claim->created_at,
+            'domain' => config('app.domain'),
+            'subject' => 'The status on your ' . $mailerConfig['company_name'] . ' claim has changed!',
+            'type' => 'status_change',
+            'status' => $data['status'],
+            'claim_id' => $claim->id,
+            'old_claim_id' => $claim->old_claim_id,
+            'displayed_claim_id' => $this->getDisplayedClaimId($claim, $order, $claimLink, $isUnmatched),
+            'claim_link_id' => $claimLink->id,
+        ];
+
+        if ($isUnmatched) {
+            $emailVars['unmatched'] = 1;
+            $emailVars['company_name'] = $mailerConfig['company_name'];
+            $emailVars['claim_key'] = $claim->claim_key;
+            $emailVars['client_id'] = $claim->client_id;
+        } else {
+            $offer = Offer::where('claim_id', $claim->id)->first();
+            $emailVars['claim_type'] = $offer ? $offer->name : $mailerConfig['company_name'];
+            $emailVars['order_key'] = $order->order_key;
+            $emailVars['client_id'] = $order->client_id;
+        }
+
+        return array_merge($mailerConfig, $emailVars);
+    }
+
+    protected function triggerStatusChangeWebhook(array $data,$claim,$claimLink,$order,bool $isUnmatched): void {
+        $payload = [
+            'subclient_id' => $isUnmatched ? 0 : $claim->subclient_id,
+            'claim_id' => $claimLink->id,
+            'policy_id' => $isUnmatched ? 0 : $claim->order_id,
+            'status' => $data['status'],
+            'filed' => $claim->filed_date->format('Y-m-d'),
+        ];
+
+        if ($claim->client_id == 56858) { // TicketGuardian
+            if (!$isUnmatched && $order && $order->extra && $order->extra->tg_policy_id) {
+                $payload['tg_policy_id'] = $order->extra->tg_policy_id;
+            }
+        } else {
+            $payload['order_number'] = $claim->order_number;
+        }
+
+        if ($data['status'] == 'Denied') {
+            $action = 'claim_denied';
+        } else {
+            $action = 'claim_status_change';
+        }
+
+        Webhook::dispatch([
+            'action' => $action,
+            'client_id' => $claim->client_id,
+            'subclient_id' => $isUnmatched ? 0 : $claim->subclient_id,
+        ], json_encode($payload));
+    }
+
+    protected function handlePaymentStatusChanges(array $data, $claimLink): void
+    {
+        if ($data['previous_status'] == "Approved" && $data['status'] == "Paid") {
+            ClaimPayment::where('claim_link_id', $claimLink->id)
+                ->update(['status' => 'Paid']);
+        }
+    }
+
+    protected function handleRemovalFromPayment(array $data, $claimLink): void
+    {
+        if (
+            $data['status'] != "Closed" &&
+            in_array($data['previous_status'], ['Approved', 'Paid'])
+        ) {
+            ClaimPayment::where('claim_link_id', $claimLink->id)->delete();
+        }
+    }
+
+    // protected function getDisplayedClaimId($claim, $order, $claimLink, bool $isUnmatched): string
+    // {
+    //     $clientId = $isUnmatched ? $claim->client_id : $order->client_id;
+
+    //     if (in_array($clientId, Claim::USE_CLAIM_LINK_ID_CLIENT_IDS)) {
+    //         return $claimLink->id;
+    //     }
+
+    //     return $claim->old_claim_id ?: $claim->id;
+    // }
 }

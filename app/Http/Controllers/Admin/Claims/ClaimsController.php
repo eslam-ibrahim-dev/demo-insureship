@@ -68,5 +68,23 @@ class ClaimsController extends Controller
         return $returnedData;
     }
 
-    
+    public function approvedSubmit(Request $request, $claim_id)
+    {
+        $data = $request->all();
+        if ($data['type'] == 'matched') {
+            return $this->claimsService->approveClaim($data, $claim_id);
+        } else {
+            return $this->claimsService->approveClaim($data, $claim_id, true);
+        }
+    }
+    public function updateClaim(Request $request, $claim_id)
+    {
+        $data = $request->all();
+        if ($data['type'] == 'matched') {
+            return $this->claimsService->updateClaim($data, $claim_id);
+        } else {
+            return $this->claimsService->updateClaim($data, $claim_id, true);
+        }
+    }
+
 }

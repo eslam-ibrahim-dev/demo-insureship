@@ -43,6 +43,7 @@ Route::middleware(['jwt.auth'])->group(function () {
     Route::get('/admin/settings', [AdminController::class, 'showSettings']);
     Route::get('/admin/{id}', [AdminController::class, 'showAdmin']);
     Route::get('/admins', [AdminController::class, 'getAdmins']);
+    Route::get('/claims-agents', [AdminController::class, 'getClaimsAgent']);
     Route::post('/admin/settings/submit', [AdminController::class, 'updateSettings']);
 
 
@@ -84,12 +85,11 @@ Route::middleware(['jwt.auth'])->group(function () {
     Route::get('/notifications/list', [NotificationController::class, 'get_notifications'])->name('admin_notification_list');
     Route::get('/notifications/redirect/{notification_id}', [NotificationController::class, 'redirect_notification'])->name('admin_notification_redirect');
     /* Offer Controller */
-    Route::get('/offer', [OfferController::class, 'indexPage'])->name('admin_offer');
-    Route::get('/offers', [OfferController::class, 'listPage'])->name('admin_offers_list');
-    Route::get('/offer/new', [OfferController::class, 'newPage'])->name('admin_offer_new');
-    Route::post('/offer/new/submit', [OfferController::class, 'newSubmit'])->name('admin_offer_new_submit');
-    Route::get('/offer/{offer_id}', [OfferController::class, 'detailPage'])->name('admin_offer_detail');
-    Route::post('/offer/{offer_id}/update', [OfferController::class, 'updateSubmit'])->name('admin_offer_update');
+    Route::get('/offers', [OfferController::class, 'indexPage']);
+    Route::get('/offer/new', [OfferController::class, 'newPage']);
+    Route::post('/offer/new/submit', [OfferController::class, 'newSubmit']);
+    Route::get('/offer/{offer_id}', [OfferController::class, 'detailPage']);
+    Route::post('/offer/{offer_id}/update', [OfferController::class, 'updateSubmit']);
     /* Reports Controller */
     Route::get('/reports/trends', [ReportsController::class, 'trendsPage'])->name('admin_reports_trends');
     Route::get('/reports/trends/data', [ReportsController::class, 'trendsReport'])->name('admin_reports_trends_data');
@@ -172,8 +172,7 @@ Route::middleware(['jwt.auth'])->group(function () {
 */
 
     Route::prefix('superclient')->group(function () {
-        Route::get('/', [SuperclientController::class, 'indexPage'])->name('admin_superclient');
-        Route::get('/superclients', [SuperclientController::class, 'listPage'])->name('admin_superclients_list');
+        Route::get('/', [SuperclientController::class, 'indexPage']);
         Route::get('/new', [SuperclientController::class, 'newPage'])->name('admin_superclient_new');
         Route::post('/new/submit', [SuperclientController::class, 'newSubmit'])->name('admin_superclient_new_submit');
         Route::get('/{superclient_id}', [SuperclientController::class, 'detailPage'])->name('admin_superclient_detail');

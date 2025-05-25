@@ -13,15 +13,8 @@ class OfferController extends Controller
     public function __construct(OfferService $offerService){
         $this->offerService = $offerService;
     }
-    public function indexPage(Request $request){
-        $data = $request->all();
-        $returnedData = $this->offerService->indexPage($data);
-        return $returnedData;
-    }
-
-    public function listPage(Request $request){
-        $data = $request->all();
-        $returnedData = $this->offerService->listPage($data);
+    public function indexPage(){
+        $returnedData = $this->offerService->indexPage();
         return $returnedData;
     }
 

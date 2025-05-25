@@ -14,6 +14,11 @@ class SuperClient extends Model
     public static $fields_static = [
         'id', 'name', 'status', 'created', 'updated'
     ];
+
+    public function clients()
+    {
+        return $this->hasMany(Client::class, 'superclient_id', 'id');
+    }
     public function getAllRecords($data = [])
     {
         $query = $this->newQuery();

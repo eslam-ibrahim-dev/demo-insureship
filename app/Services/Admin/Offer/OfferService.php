@@ -4,25 +4,9 @@ namespace App\Services\Admin\Offer;
 use App\Models\Offer;
 
 class OfferService {
-    public function indexPage($data){
-        $user = auth('admin')->user();
-        $data['profile_picture'] = $user->profile_picture;
-        $data['user_name'] = $user->name;
-        $data['alevel'] = $user->level;
-        $data['admin_id'] = $user->id;
-
-        return response()->json(['data' => $data] , 200);
-    }
-
-    public function listPage($data){
-        $user = auth('admin')->user();
-        $data['profile_picture'] = $user->profile_picture;
-        $data['user_name'] = $user->name;
-        $data['alevel'] = $user->level;
-        $data['admin_id'] = $user->id;
-
-        $data['offers'] = Offer::all();
-        return response()->json(['data' => $data] , 200);
+    public function indexPage(){
+        $offers = Offer::paginate(20);
+        return response()->json(['data' => $offers] , 200);
     }
 
     public function newPage($data){
