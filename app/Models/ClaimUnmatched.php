@@ -205,7 +205,16 @@ class ClaimUnmatched extends Model
         if (!empty($data['superclient_id'])) {
             $baseQuery->where('f.superclient_id', $data['superclient_id']);
         }
+        if (!empty($data['merchant_name'])) {
+            $baseQuery->where(function ($q) use ($data) {
+                $q->where('a.merchant_name', 'like', $data['claimant_name'] . '%')
+                    ->orWhere('a.merchant_name', 'like', '%' . $data['claimant_name']);
+            });
+        }
 
+        if (!empty($data['merchant_id'])) {
+            $baseQuery->where('a.merchant_id', $data['merchant_id']);
+        }
         $extraFields = ['order_number', 'client_id', 'subclient_id', 'claim_type'];
         foreach ($extraFields as $field) {
             if (!empty($data[$field])) {

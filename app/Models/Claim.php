@@ -243,9 +243,18 @@ class Claim extends Model
                     ->orWhere('a.customer_name', 'like', '%' . $data['claimant_name']);
             });
         }
+        if (!empty($data['merchant_name'])) {
+            $baseQuery->where(function ($q) use ($data) {
+                $q->where('a.merchant_name', 'like', $data['claimant_name'] . '%')
+                    ->orWhere('a.merchant_name', 'like', '%' . $data['claimant_name']);
+            });
+        }
 
         if (!empty($data['superclient_id'])) {
-            $baseQuery->where('a.superclient_id', $data['superclient_id']);
+            $baseQuery->where('f.superclient_id', $data['superclient_id']);
+        }
+        if (!empty($data['merchant_id'])) {
+            $baseQuery->where('a.merchant_id', $data['merchant_id']);
         }
         if (!empty($data['client_id'])) {
             $baseQuery->where('a.client_id', $data['client_id']);
