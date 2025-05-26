@@ -728,6 +728,7 @@ class ClaimsService
         $user = auth('admin')->user();
         $admin = Admin::findOrFail($user->id);
 
+
         // Get claim with appropriate relationships
         $claim = $isUnmatched
             ? ClaimUnmatched::findOrFail($claimId)
@@ -740,7 +741,11 @@ class ClaimsService
             ? ClaimLink::where('unmatched_claim_id', $claimId)->firstOrFail()
             : ClaimLink::where('matched_claim_id', $claimId)->firstOrFail();
 
-
+        if ($data['admin_id']) {
+            $data['admin_id'] = $admin->id;
+        } else {
+            $data['admin_id'] = 0;
+        }
         // Handle status changes
         if (!empty($data['status'])) {
             $this->handleStatusChange(
@@ -1407,7 +1412,7 @@ class ClaimsService
         $orderOffer->update(['claim_id' => $claimId]);
     }
     //////////////////////////////////////////// upload file 
-    public function uploadFile( $data, string $claimId, string $docType, bool $isUnmatched = false): JsonResponse
+    public function uploadFile($data, string $claimId, string $docType, bool $isUnmatched = false): JsonResponse
     {
         $admin = auth('admin')->user();
 
