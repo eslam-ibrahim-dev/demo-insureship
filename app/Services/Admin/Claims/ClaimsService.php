@@ -360,7 +360,7 @@ class ClaimsService
         foreach ($fields as $field) {
             switch ($field) {
                 case 'superclient':
-                    $mapped[] = $claim->superclient_id . ' - ' . $claim->superclient_name;
+                    $mapped[] = $claim->client->superclient_id . ' - ' . $claim->client->superclient_name;
                     break;
                 case 'client':
                     $mapped[] = $claim->client_id . ' - ' . $claim->client_name;
