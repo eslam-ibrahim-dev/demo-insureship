@@ -196,8 +196,8 @@ class ClaimsService
             }
         }
         // filed_type
-        if (!empty($filters['filed_type'])) {
-            $cond = $filters['filed_type'] === 'matched' ? 'IS NOT NULL' : 'IS NULL';
+        if (!empty($filters['type'])) {
+            $cond = $filters['type'] === 'matched' ? 'IS NOT NULL' : 'IS NULL';
             $q->whereRaw("a.matched_claim_id {$cond}");
         }
 
