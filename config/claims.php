@@ -61,6 +61,7 @@ return [
         'agent',
         'agent_id',
         'admin_id',
+        'superclient_id',
         'purchase_amount',
         'order_date',
         'merchant_id',

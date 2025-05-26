@@ -117,7 +117,6 @@ class ClaimsService
 
     public function buildQuery(array $filters): Builder
     {
-
         $q = DB::table('osis_claim_type_link as a')
             ->leftJoin('osis_claim as b', 'a.matched_claim_id', 'b.id')
             ->leftJoin('osis_claim_unmatched as c', 'a.unmatched_claim_id', 'c.id')
@@ -189,7 +188,7 @@ class ClaimsService
         }
 
         // generic filters
-        foreach (['start_date', 'end_date', 'tracking_number', 'order_number', 'claim_id', 'claimant_name'] as $f) {
+        foreach (['start_date', 'end_date', 'tracking_number', 'order_number', 'claim_id', 'claimant_name', 'email'] as $f) {
             if (isset($filters[$f]) && $filters[$f] !== '') {
                 $v = $filters[$f];
                 $q->where(fn($qb) => $this->applyFilter($qb, $f, $v));
@@ -217,6 +216,9 @@ class ClaimsService
         if ($f === 'claimant_name') {
             $qb->where('b.customer_name', 'like', "%{$v}%")
                 ->orWhere('c.customer_name', 'like', "%{$v}%");
+        } elseif ($f === 'email') {
+            $qb->where('b.email', 'like', "%{$v}%")
+                ->orWhere('c.email', 'like', "%{$v}%");
         } elseif ($f === 'claim_id') {
             $qb->where('a.id', $v)
                 ->orWhere('a.matched_claim_id', $v)
@@ -261,6 +263,9 @@ class ClaimsService
                     break;
                 case 'agent_id':
                     $parts[] = "COALESCE(b.admin_id, c.admin_id) AS agent_id";
+                    break;
+                case 'order_id':
+                    $parts[] = "CASE WHEN a.matched_claim_id IS NOT NULL THEN b.order_id ELSE 0 END AS order_id";
                     break;
                 case 'purchase_amount':
                     $parts[] = "CASE 
@@ -756,7 +761,7 @@ class ClaimsService
                 $isUnmatched
             );
         }
-        
+
         // Final claim update
         $claim->update(array_merge(['unread' => 0], $data));
 
