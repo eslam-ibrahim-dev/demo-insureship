@@ -78,7 +78,7 @@ class ClaimsService
     {
         $claimLink = ClaimLink::where('matched_claim_id', $claim_id)
             ->orWhere('unmatched_claim_id', $claim_id)
-            ->firstOrFail();
+            ->first();
 
         if ($claimLink->matched_claim_id == $claim_id) {
             $claimLink->load([
@@ -650,20 +650,20 @@ class ClaimsService
     //         ->send(new ClaimStatusChanged($emailVars));
     // }
 
-    protected function getDisplayedClaimId($claim, $order, $claimLink, bool $isUnmatched = false): string
-    {
-        if ($isUnmatched) {
-            if (in_array($claim->client_id, Claim::USE_CLAIM_LINK_ID_CLIENT_IDS)) {
-                return $claimLink->id;
-            }
-        } else {
-            if (in_array($order->client_id, Claim::USE_CLAIM_LINK_ID_CLIENT_IDS)) {
-                return $claimLink->id;
-            }
-        }
+    // protected function getDisplayedClaimId($claim, $order, $claimLink, bool $isUnmatched = false): string
+    // {
+    //     if ($isUnmatched) {
+    //         if (in_array($claim->client_id, Claim::USE_CLAIM_LINK_ID_CLIENT_IDS)) {
+    //             return $claimLink->id;
+    //         }
+    //     } else {
+    //         if (in_array($order->client_id, Claim::USE_CLAIM_LINK_ID_CLIENT_IDS)) {
+    //             return $claimLink->id;
+    //         }
+    //     }
 
-        return $claim->old_claim_id ?: $claim->id;
-    }
+    //     return $claim->old_claim_id ?: $claim->id;
+    // }
 
     protected function triggerWebhook($claim, $order, $claimLink, array $data, bool $isUnmatched = false): void
     {
@@ -754,7 +754,8 @@ class ClaimsService
         return response()->json(['status' => 'updated']);
     }
 
-    protected function handleStatusChange(array &$data,$claim,$claimLink,$order,bool $isUnmatched): void {
+    protected function handleStatusChange(array &$data, $claim, $claimLink, $order, bool $isUnmatched): void
+    {
         if ($this->shouldProcessStatusChange($data, $claim)) {
             // Update status date field
             $this->updateStatusDateField($data);
@@ -838,7 +839,13 @@ class ClaimsService
     //         ->send(new ClaimStatusChanged($emailVars));
     // }
 
-    protected function prepareEmailVars(array $data,$claim,$claimLink,$order,array $mailerConfig,bool $isUnmatched
+    protected function prepareEmailVars(
+        array $data,
+        $claim,
+        $claimLink,
+        $order,
+        array $mailerConfig,
+        bool $isUnmatched
     ): array {
         $emailVars = [
             'from_email' => $mailerConfig['email'],
@@ -869,7 +876,8 @@ class ClaimsService
         return array_merge($mailerConfig, $emailVars);
     }
 
-    protected function triggerStatusChangeWebhook(array $data,$claim,$claimLink,$order,bool $isUnmatched): void {
+    protected function triggerStatusChangeWebhook(array $data, $claim, $claimLink, $order, bool $isUnmatched): void
+    {
         $payload = [
             'subclient_id' => $isUnmatched ? 0 : $claim->subclient_id,
             'claim_id' => $claimLink->id,
@@ -917,14 +925,165 @@ class ClaimsService
         }
     }
 
-    // protected function getDisplayedClaimId($claim, $order, $claimLink, bool $isUnmatched): string
-    // {
-    //     $clientId = $isUnmatched ? $claim->client_id : $order->client_id;
+    protected function getDisplayedClaimId($claim, $order, $claimLink, bool $isUnmatched): string
+    {
+        $clientId = $isUnmatched ? $claim->client_id : $order->client_id;
 
-    //     if (in_array($clientId, Claim::USE_CLAIM_LINK_ID_CLIENT_IDS)) {
-    //         return $claimLink->id;
+        if (in_array($clientId, Claim::USE_CLAIM_LINK_ID_CLIENT_IDS)) {
+            return $claimLink->id;
+        }
+
+        return $claim->old_claim_id ?: $claim->id;
+    }
+
+
+    /////////////////////////////// Request Document : 
+    public function requestDocument($request, $claimId, $isUnmatched = false): JsonResponse
+    {
+        $data = $request->all();
+        $admin = auth('admin')->user();
+
+        $claim = $isUnmatched
+            ? ClaimUnmatched::findOrFail($claimId)
+            : Claim::with('order')->findOrFail($claimId);
+
+        $order = $isUnmatched ? null : $claim->order;
+
+        $claimLink = $isUnmatched
+            ? ClaimLink::where('unmatched_claim_id', $claimId)->firstOrFail()
+            : ClaimLink::where('matched_claim_id', $claimId)->firstOrFail();
+
+        // Update claim as unread
+        $claim->unread = 0;
+
+        // Handle "Other" document type
+        if ($data['document_type'] == "Other") {
+            $data['document_type'] = $data['other'];
+        }
+
+        // Update status if needed
+        if ($claim->status == "Pending Denial") {
+            $claim->status = "Under Review";
+        }
+        $claim->save();
+        // Send email notification
+        // $this->sendDocumentRequestEmail(
+        //     $data,
+        //     $claim,
+        //     $claimLink,
+        //     $order,
+        //     $isUnmatched
+        // );
+
+        // Add admin message
+        $this->addAdminMessage(
+            $claim,
+            $data,
+            $admin->id
+        );
+
+        // Trigger webhook if not TicketGuardian
+        // if ($claim->client_id != 56858) {
+        //     $this->triggerDocumentRequestWebhook(
+        //         $data,
+        //         $claim,
+        //         $claimLink,
+        //         $isUnmatched
+        //     );
+        // }
+
+        return response()->json(['message' => 'Document has been requested']);
+    }
+
+    protected function sendDocumentRequestEmail(array $data,$claim,$claimLink,$order,bool $isUnmatched): void {
+        $client = Client::find($claim->client_id);
+        $superclientId = $client->superclient_id;
+
+        $mailerConfig = MailerService::bySuperclientClientSubclientId(
+            $claim->client_id,
+            $isUnmatched ? 0 : $claim->subclient_id,
+            $superclientId
+        );
+
+        $emailVars = $this->prepareEmailVars(
+            $data,
+            $claim,
+            $claimLink,
+            $order,
+            $mailerConfig,
+            $isUnmatched
+        );
+
+        // Mail::to($emailVars['to_email'])
+        //     ->send(new DocumentRequested($emailVars));
+    }
+
+    // protected function prepareEmailVars(
+    //     array $data,
+    //     $claim,
+    //     $claimLink,
+    //     $order,
+    //     array $mailerConfig,
+    //     bool $isUnmatched
+    // ): array {
+    //     $emailVars = [
+    //         'from_email' => $mailerConfig['email'],
+    //         'to_email' => $claim->email,
+    //         'file_date' => $claim->created_at,
+    //         'domain' => config('app.domain'),
+    //         'subject' => 'A document has been requested for your ' . $mailerConfig['company_name'] . ' claim!',
+    //         'message' => $data['message'],
+    //         'doc_request_type' => $data['document_type'],
+    //         'type' => 'document_request',
+    //         'status' => $claim->status,
+    //         'claim_id' => $claim->id,
+    //         'old_claim_id' => $claim->old_claim_id,
+    //         'displayed_claim_id' => $this->getDisplayedClaimId($claim, $order, $claimLink, $isUnmatched),
+    //         'claim_link_id' => $claimLink->id,
+    //     ];
+
+    //     if ($isUnmatched) {
+    //         $emailVars['unmatched'] = 1;
+    //         $emailVars['company_name'] = $mailerConfig['company_name'];
+    //         $emailVars['claim_key'] = $claim->claim_key;
+    //         $emailVars['client_id'] = $claim->client_id;
+    //     } else {
+    //         $offer = Offer::where('claim_id', $claim->id)->first();
+    //         $emailVars['claim_type'] = $offer ? $offer->name : $mailerConfig['company_name'];
+    //         $emailVars['order_key'] = $order->order_key;
+    //         $emailVars['client_id'] = $order->client_id;
     //     }
 
-    //     return $claim->old_claim_id ?: $claim->id;
+    //     return array_merge($mailerConfig, $emailVars);
     // }
+
+    protected function addAdminMessage($claim, array $data, int $adminId): void
+    {
+        $claim->messages()->create([
+            'message' => $data['message'],
+            'type' => 'Document Request',
+            'admin_id' => $adminId,
+            'document_type' => $data['document_type'],
+        ]);
+    }
+
+    protected function triggerDocumentRequestWebhook(array $data,$claim,$claimLink,bool $isUnmatched): void {
+        $payload = [
+            'subclient_id' => $isUnmatched ? 0 : $claim->subclient_id,
+            'claim_id' => $claimLink->id,
+            'policy_id' => $isUnmatched ? 0 : $claim->order_id,
+            'order_number' => $claim->order_number,
+            'message' => $data['message'],
+            'document_type' => $data['document_type'],
+            'filed' => $claim->filed_date->format('Y-m-d'),
+        ];
+
+        Webhook::dispatch([
+            'action' => 'claim_document_requested',
+            'client_id' => $claim->client_id,
+            'subclient_id' => $isUnmatched ? 0 : $claim->subclient_id,
+        ], json_encode($payload));
+    }
+
+    ///////////////////////////////////
 }

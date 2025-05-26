@@ -131,7 +131,7 @@ Route::middleware(['jwt.auth'])->group(function () {
      * Claim detail and actions
      *
      */
-    Route::get('/claim/{claim_id}', [ClaimsController::class, 'detailPage'])->name('admin_claim_detail');
+    Route::get('/claim/{claim_id}', [ClaimsController::class, 'detailPage']);
 
     Route::get('/claim/{claim_id}/approved', [ClaimsController::class, 'approvedPage'])->name('admin_claim_approved');
     Route::post('/claim/{claim_id}/approved-submit', [ClaimsController::class, 'approvedSubmit'])->name('admin_claim_approved_submit');
@@ -289,7 +289,7 @@ Route::prefix('clients')->group(function () {
         });
         Route::controller(ClientClaimsController::class)->group(function () {
             Route::get('claims',  'getClientClaimsList');
-            Route::post('/create-claim', 'newClaimSubmit');
+            Route::post('/claim', 'newClaimSubmit');
             Route::get('/claim/{claim_id}', 'detailPage');
         });
     });
