@@ -3,15 +3,25 @@
 namespace App\Auth;
 
 use Illuminate\Auth\EloquentUserProvider;
+use Illuminate\Contracts\Auth\Authenticatable as UserContract;
+use Illuminate\Support\Facades\Hash;
 
 class ShaUserProvider extends EloquentUserProvider
 {
-    public function validateCredentials($user, array $credentials)
+    public function validateCredentials(UserContract $user, array $credentials)
     {
         $plain = $credentials['password'];
+        $stored = $user->getAuthPassword();
 
-        // Compare SHA-512 hash with stored password
-        return hash('sha512', $plain) === $user->getAuthPassword();
+        if (hash('sha512', $plain) === $stored) {
+            return true;
+        }
+
+        if (Hash::check($plain, $stored)) {
+            return true;
+        }
+
+        return false;
     }
 
     public function retrieveByCredentials(array $credentials)
@@ -20,7 +30,7 @@ class ShaUserProvider extends EloquentUserProvider
             empty($credentials) ||
             (count($credentials) === 1 && array_key_exists('password', $credentials))
         ) {
-            return;
+            return null;
         }
 
         $query = $this->createModel()->newQuery();
