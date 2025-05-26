@@ -724,7 +724,7 @@ class ClaimsService
 
     public function updateClaim($request, $claimId, $isUnmatched = false): JsonResponse
     {
-        $data = $request->all();
+        $data = $request;
         $user = auth('admin')->user();
         $admin = Admin::findOrFail($user->id);
 
@@ -746,6 +746,7 @@ class ClaimsService
         } else {
             $data['admin_id'] = 0;
         }
+
         // Handle status changes
         if (!empty($data['status'])) {
             $this->handleStatusChange(
@@ -756,7 +757,7 @@ class ClaimsService
                 $isUnmatched
             );
         }
-
+        
         // Final claim update
         $claim->update(array_merge(['unread' => 0], $data));
 
