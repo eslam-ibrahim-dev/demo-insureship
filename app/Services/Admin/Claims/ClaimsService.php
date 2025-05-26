@@ -179,8 +179,8 @@ class ClaimsService
         // assigned_type
         if (!empty($filters['assigned_type'])) {
             match ($filters['assigned_type']) {
-                'assigned'   => fn() => $q->where(fn($qb) => $qb->where('b.admin_id', '>', 0)->orWhere('c.admin_id', '>', 0)),
-                'unassigned' => fn() => $q->where(fn($qb) => $qb->whereNull('b.admin_id')->orWhere('b.admin_id', '<=', 0)
+                -1   => fn() => $q->where(fn($qb) => $qb->where('b.admin_id', '>', 0)->orWhere('c.admin_id', '>', 0)),
+                -2  => fn() => $q->where(fn($qb) => $qb->whereNull('b.admin_id')->orWhere('b.admin_id', '<=', 0)
                     ->whereNull('c.admin_id')->orWhere('c.admin_id', '<=', 0)),
                 default      => fn() => is_numeric($filters['assigned_type'])
                     ? $q->where(fn($qb) => $qb->where('b.admin_id', $filters['assigned_type'])->orWhere('c.admin_id', $filters['assigned_type']))
