@@ -16,6 +16,8 @@ use App\Models\ClaimPayment;
 use App\Services\MailerService;
 use Illuminate\Support\Str;
 use App\Models\ClaimUnmatched;
+use App\Models\Order;
+use App\Models\Order_Offer;
 use App\Models\Store;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request;
@@ -26,6 +28,8 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class ClaimsService
 {
@@ -995,7 +999,8 @@ class ClaimsService
         return response()->json(['message' => 'Document has been requested']);
     }
 
-    protected function sendDocumentRequestEmail(array $data,$claim,$claimLink,$order,bool $isUnmatched): void {
+    protected function sendDocumentRequestEmail(array $data, $claim, $claimLink, $order, bool $isUnmatched): void
+    {
         $client = Client::find($claim->client_id);
         $superclientId = $client->superclient_id;
 
@@ -1067,7 +1072,8 @@ class ClaimsService
         ]);
     }
 
-    protected function triggerDocumentRequestWebhook(array $data,$claim,$claimLink,bool $isUnmatched): void {
+    protected function triggerDocumentRequestWebhook(array $data, $claim, $claimLink, bool $isUnmatched): void
+    {
         $payload = [
             'subclient_id' => $isUnmatched ? 0 : $claim->subclient_id,
             'claim_id' => $claimLink->id,
@@ -1085,5 +1091,380 @@ class ClaimsService
         ], json_encode($payload));
     }
 
-    ///////////////////////////////////
+    ///////////////////////////////////  Message Submit :
+
+
+    public function submitMessage($request, $claimId, $isUnmatched = false): JsonResponse
+    {
+        $data = $request->all();
+        $admin = auth('admin')->user();
+
+        // Get claim with appropriate relationships
+        $claim = $isUnmatched
+            ? ClaimUnmatched::findOrFail($claimId)
+            : Claim::with('order')->findOrFail($claimId);
+
+        $order = $isUnmatched ? null : $claim->order;
+
+        // Get claim link based on claim type
+        $claimLink = $isUnmatched
+            ? ClaimLink::where('unmatched_claim_id', $claimId)->firstOrFail()
+            : ClaimLink::where('matched_claim_id', $claimId)->firstOrFail();
+
+        // Update claim as unread
+        $claim->unread = 0;
+
+        // Handle Agent Message
+        if ($data['message_type'] == "Agent Message" && !empty($claim->email)) {
+            $this->handleAgentMessage(
+                $data,
+                $claim,
+                $claimLink,
+                $order,
+                $isUnmatched
+            );
+        }
+
+        $claim->save();
+
+        // Add message to claim
+        $this->addMessageToClaim(
+            $claim,
+            $data,
+            $admin->id
+        );
+
+        return response()->json(['message' => 'Your message has been submitted']);
+    }
+
+    protected function handleAgentMessage(
+        array $data,
+        $claim,
+        $claimLink,
+        $order,
+        bool $isUnmatched
+    ): void {
+        // Update status if pending denial
+        if ($claim->status == "Pending Denial") {
+            $claim->status = "Under Review";
+        }
+
+        // Send email notification
+        // $this->sendAgentMessageEmail(
+        //     $data,
+        //     $claim,
+        //     $claimLink,
+        //     $order,
+        //     $isUnmatched
+        // );
+
+        // // Trigger webhook if not TicketGuardian
+        // if ($claim->client_id != 56858) {
+        //     $this->triggerMessageSentWebhook(
+        //         $data,
+        //         $claim,
+        //         $claimLink,
+        //         $isUnmatched
+        //     );
+        // }
+    }
+
+    // protected function sendAgentMessageEmail(
+    //     array $data,
+    //     $claim,
+    //     $claimLink,
+    //     $order,
+    //     bool $isUnmatched
+    // ): void {
+    //     $client = Client::find($claim->client_id);
+    //     $superclientId = $client->superclient_id;
+
+    //     $mailerConfig = MailerService::bySuperclientClientSubclientId(
+    //         $claim->client_id,
+    //         $isUnmatched ? 0 : $claim->subclient_id,
+    //         $superclientId
+    //     );
+
+    //     $emailVars = $this->prepareEmailVars(
+    //         $data,
+    //         $claim,
+    //         $claimLink,
+    //         $order,
+    //         $mailerConfig,
+    //         $isUnmatched
+    //     );
+
+    //     Mail::to($emailVars['to_email'])
+    //         ->send(new ClaimMessageSent($emailVars));
+    // }
+
+    // protected function prepareEmailVars(array $data,$claim,$claimLink,$order,array $mailerConfig,bool $isUnmatched
+    // ): array {
+    //     $emailVars = [
+    //         'from_email' => $mailerConfig['email'],
+    //         'to_email' => $claim->email,
+    //         'file_date' => $claim->created_at,
+    //         'domain' => config('app.domain'),
+    //         'subject' => 'New message for your ' . $mailerConfig['company_name'] . ' claim!',
+    //         'message' => $data['message'],
+    //         'type' => 'new_message',
+    //         'status' => $claim->status,
+    //         'claim_id' => $claim->id,
+    //         'old_claim_id' => $claim->old_claim_id,
+    //         'displayed_claim_id' => $this->getDisplayedClaimId($claim, $order, $claimLink, $isUnmatched),
+    //         'claim_link_id' => $claimLink->id,
+    //     ];
+
+    //     if ($isUnmatched) {
+    //         $emailVars['unmatched'] = 1;
+    //         $emailVars['company_name'] = $mailerConfig['company_name'];
+    //         $emailVars['claim_key'] = $claim->claim_key;
+    //         $emailVars['client_id'] = $claim->client_id;
+    //     } else {
+    //         $offer = Offer::where('claim_id', $claim->id)->first();
+    //         $emailVars['claim_type'] = $offer ? $offer->name : $mailerConfig['company_name'];
+    //         $emailVars['order_key'] = $order->order_key;
+    //         $emailVars['client_id'] = $order->client_id;
+    //     }
+
+    //     return array_merge($mailerConfig, $emailVars);
+    // }
+
+    // protected function triggerMessageSentWebhook(array $data,$claim,$claimLink,bool $isUnmatched
+    // ): void {
+    //     $payload = [
+    //         'subclient_id' => $isUnmatched ? 0 : $claim->subclient_id,
+    //         'claim_id' => $claimLink->id,
+    //         'policy_id' => $isUnmatched ? 0 : $claim->order_id,
+    //         'order_number' => $claim->order_number,
+    //         'message' => $data['message'],
+    //         'filed' => $claim->filed_date->format('Y-m-d'),
+    //     ];
+
+    //     Webhook::dispatch([
+    //         'action' => 'claim_message_sent',
+    //         'client_id' => $claim->client_id,
+    //         'subclient_id' => $isUnmatched ? 0 : $claim->subclient_id,
+    //     ], json_encode($payload));
+    // }
+
+    protected function addMessageToClaim($claim, array $data, int $adminId): void
+    {
+        $claim->messages()->create([
+            'message' => $data['message'],
+            'type' => $data['message_type'],
+            'admin_id' => $adminId,
+        ]);
+    }
+
+    ////////////////////////////////////// Update Message 
+
+    public function updateMessage($request, $claimId, $messageId, $isUnmatched = false): JsonResponse
+    {
+        $data = $request->all();
+
+        // Get appropriate claim model based on type
+        $claim = $isUnmatched
+            ? ClaimUnmatched::find($claimId)
+            : Claim::find($claimId);
+
+        // Update the message
+        $this->updateClaimMessage(
+            $claim,
+            $messageId,
+            ['message' => $data['claim_message_textarea']]
+        );
+
+        return response()->json(['message' => 'Message has been updated']);
+    }
+
+    protected function updateClaimMessage($claim, $messageId, array $params): void
+    {
+        $claim->messages()
+            ->where('id', $messageId)
+            ->update($params);
+    }
+
+    ////////////////////////////////////// Delete Message 
+
+    public function deleteMessage($claimId, $messageId, $isUnmatched = false): JsonResponse
+    {
+
+        // Get appropriate claim model based on type
+        $claim = $isUnmatched
+            ? ClaimUnmatched::find($claimId)
+            : Claim::find($claimId);
+
+        $this->deleteClaimMessage($claim, $messageId);
+
+        return response()->json(['message' => 'Message has been deleted']);
+    }
+
+    protected function deleteClaimMessage($claim, string $messageId): void
+    {
+        $claim->messages()
+            ->where('id', $messageId)
+            ->delete();
+    }
+
+    //////////////////////////////////////////  update policy id 
+
+    public function updatePolicyID($request, string $claimId): JsonResponse
+    {
+        // Validate input
+        $validator = Validator::make($request->all(), [
+            'policy_id' => 'required|integer|exists:orders,id',
+            'offer_type' => 'required|string|exists:offers,link_name'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $validated = $validator->validated();
+        $adminId = auth('admin')->id();
+
+        try {
+            $this->updateClaimPolicy(
+                claimId: $claimId,
+                newPolicyId: $validated['policy_id'],
+                offerType: $validated['offer_type'],
+                adminId: $adminId
+            );
+
+            return response()->json([
+                'message' => 'Policy ID updated successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update policy ID',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    protected function updateClaimPolicy(
+        string $claimId,
+        int $newPolicyId,
+        string $offerType,
+        int $adminId
+    ): void {
+        if ($this->claimAlreadyFiled($newPolicyId, $offerType)) {
+            throw ValidationException::withMessages([
+                'policy_id' => 'A claim of this type has already been filed.'
+            ]);
+        }
+
+        $claim = Claim::findOrFail($claimId);
+        $order = Order::findOrFail($newPolicyId);
+
+        DB::transaction(function () use ($claim, $order, $offerType, $claimId, $newPolicyId) {
+
+            $this->clearClaimFromOldOrderOffer($claimId);
+
+            $orderOffer = $this->getOrderOfferByOrderAndClaimType($newPolicyId, $offerType);
+            $this->updateOrderOfferWithClaimId($orderOffer, $claimId);
+
+            $claim->update([
+                'order_id' => $newPolicyId,
+                'client_id' => $order->client_id,
+                'subclient_id' => $order->subclient_id,
+            ]);
+        });
+    }
+
+    protected function claimAlreadyFiled(int $orderId, string $claimType): bool
+    {
+        return Claim::where('order_id', $orderId)
+            ->where('claim_type', $claimType)
+            ->exists();
+    }
+
+    protected function getOrderOfferByOrderAndClaimType(int $orderId, string $claimType)
+    {
+        return Order_Offer::whereHas('offer', function ($query) use ($claimType) {
+            $query->where('link_name', $claimType);
+        })
+            ->where('order_id', $orderId)
+            ->firstOrFail();
+    }
+
+    protected function clearClaimFromOldOrderOffer(string $claimId): void
+    {
+        Order_Offer::where('claim_id', $claimId)
+            ->update(['claim_id' => null]);
+    }
+
+    protected function updateOrderOfferWithClaimId(Order_Offer $orderOffer, string $claimId): void
+    {
+        $orderOffer->update(['claim_id' => $claimId]);
+    }
+    //////////////////////////////////////////// upload file 
+    public function uploadFile( $data, string $claimId, string $docType, bool $isUnmatched = false): JsonResponse
+    {
+        $admin = auth('admin')->user();
+
+        $claim = $isUnmatched
+            ? ClaimUnmatched::findOrFail($claimId)
+            : Claim::findOrFail($claimId);
+
+        $claim->update(['unread' => 0]);
+
+        $filePath = $this->storeUploadedFile($data, $claimId, $isUnmatched);
+
+        // Add message to claim
+        $this->addDocumentMessageToClaim(
+            claim: $claim,
+            claimId: $claimId,
+            docType: $docType,
+            fileName: $filePath,
+            adminId: $admin->id
+        );
+
+        return response()->json(['message' => 'File has been uploaded']);
+    }
+
+    protected function storeUploadedFile(Request $request, string $claimId, bool $isUnmatched): string
+    {
+        $request->validate([
+            'file' => 'required|file|max:10240',
+        ]);
+
+        $file = $request->file('file');
+        $folder = $isUnmatched ? 'unmatched_claims' : 'matched_claims';
+
+        // Generate a unique filename with original extension
+        $fileName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
+        $extension = $file->getClientOriginalExtension();
+        $uniqueName = "claim-{$claimId}-{$fileName}-" . uniqid() . ".{$extension}";
+
+        return $file->storeAs(
+            "claims/{$folder}/{$claimId}",
+            $uniqueName
+        );
+    }
+
+    protected function addDocumentMessageToClaim(
+        $claim,
+        string $claimId,
+        string $docType,
+        string $fileName,
+        int $adminId
+    ): void {
+        $claim->messages()->create([
+            'claim_id' => $claimId,
+            'message' => 'File Upload',
+            'type' => 'Agent Upload',
+            'admin_id' => $adminId,
+            'document_type' => $docType,
+            'document_file' => $fileName,
+        ]);
+    }
 }

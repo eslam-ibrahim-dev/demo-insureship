@@ -133,38 +133,18 @@ Route::middleware(['jwt.auth'])->group(function () {
      */
     Route::get('/claim/{claim_id}', [ClaimsController::class, 'detailPage']);
 
-    Route::get('/claim/{claim_id}/approved', [ClaimsController::class, 'approvedPage'])->name('admin_claim_approved');
     Route::post('/claim/{claim_id}/approved-submit', [ClaimsController::class, 'approvedSubmit'])->name('admin_claim_approved_submit');
-    Route::post('/claim/{claim_id}/approved-submit/no-pay-out', [ClaimsController::class, 'approvedSubmitNoPayOut'])->name('admin_claim_approved_submit_no_pay_out');
-    Route::get('/claim/{claim_id}/update', [ClaimsController::class, 'update'])->name('admin_claim_detail_update');
-    Route::post('/claim/{claim_id}/request_document', [ClaimsController::class, 'requestDocument'])->name('admin_request_document');
-    Route::post('/claim/{claim_id}/message-submit', [ClaimsController::class, 'messageSubmit'])->name('admin_message_submit');
-    Route::get('/claim/{claim_id}/refresh-messages', [ClaimsController::class, 'messageRefresh'])->name('admin_message_refresh');
-    Route::post('/claim/{claim_id}/upload-file/{doc_type}', [ClaimsController::class, 'uploadFile'])->name('admin_upload_file');
-    Route::post('/claim/{claim_id}/update_policy_id', [ClaimsController::class, 'updatePolicyID'])->name('admin_claim_update_policy_id');
+    Route::post('/claim/{claim_id}/approved-submit/no-pay-out', [ClaimsController::class, 'approvedSubmitNoPayOut']);
+    Route::put('/claim/{claim_id}/update', [ClaimsController::class, 'updateClaim']);
+    Route::post('/claim/{claim_id}/request_document', [ClaimsController::class, 'requestDocument']);
+    Route::post('/claim/{claim_id}/message-submit', [ClaimsController::class, 'messageSubmit']);
+    Route::post('/claim/{claim_id}/upload-file/{doc_type}', [ClaimsController::class, 'uploadFile']);
+    Route::post('/claim/{claim_id}/update_policy_id', [ClaimsController::class, 'updatePolicyID']);
     Route::get('/claim/{claim_id}/print', [ClaimsController::class, 'printClaim'])->name('admin_claim_print');
-    Route::delete('/claim/{claim_id}/message-delete/{claim_message_id}', [ClaimsController::class, 'messageDelete'])->name('admin_message_delete');
-    Route::put('/claim/{claim_id}/message-update/{claim_message_id}', [ClaimsController::class, 'messageUpdate'])->name('admin_message_update');
-
-    /**
-     *
-     * Unmatched Claim detail and actions
-     *
-     */
-    Route::get('/unmatched_claim/{claim_id}/approved', [ClaimsController::class, 'approvedPageUnmatched'])->name('admin_unmatched_claim_approved');
-    Route::post('/unmatched_claim/{claim_id}/approved-submit', [ClaimsController::class, 'approvedSubmitUnmatched'])->name('admin_unmatched_claim_approved_submit');
-    Route::post('/unmatched_claim/{claim_id}/approved-submit/no-pay-out', [ClaimsController::class, 'approvedSubmitNoPayOutUnmatched'])->name('admin_unmatched_claim_approved_submit_no_pay_out');
-    Route::get('/unmatched_claim/{claim_id}/update', [ClaimsController::class, 'updateUnmatched'])->name('admin_unmatched_claim_detail_update');
-    Route::post('/unmatched_claim/{claim_id}/request_document', [ClaimsController::class, 'requestDocumentUnmatched'])->name('admin_unmatched_request_document');
-    Route::post('/unmatched_claim/{claim_id}/message-submit', [ClaimsController::class, 'messageSubmitUnmatched'])->name('admin_unmatched_message_submit');
-    Route::get('/unmatched_claim/{claim_id}/refresh-messages', [ClaimsController::class, 'messageRefreshUnmatched'])->name('admin_unmatched_message_refresh');
-    Route::post('/unmatched_claim/{claim_id}/upload-file/{doc_type}', [ClaimsController::class, 'uploadFileUnmatched'])->name('admin_unmatched_upload_file');
-    Route::get('/unmatched_claim/{claim_id}/print', [ClaimsController::class, 'printClaimUnmatched'])->name('admin_unmatched_claim_print');
-    Route::put('/unmatched_claim/{claim_id}/message-update/{claim_message_id}', [ClaimsController::class, 'messageUpdateUnmatched'])->name('admin_unmatched_message_update');
-    Route::delete('/unmatched_claim/{claim_id}/message-delete/{claim_message_id}', [ClaimsController::class, 'messageDeleteUnmatched'])->name('admin_unmatched_message_delete');
-
-    Route::get('/unmatched_claim/offer_search/{policy_id}', [ClaimsController::class, 'offerSearchUnmatched'])->name('admin_unmatched_claim_offer_search');
-    Route::post('/unmatched_claim/convert/{claim_id}', [ClaimsController::class, 'unmatchedConvert'])->name('admin_unmatched_claim_convert');
+    Route::delete('/claim/{claim_id}/message-delete/{claim_message_id}', [ClaimsController::class, 'messageDelete']);
+    Route::put('/claim/{claim_id}/message-update/{claim_message_id}', [ClaimsController::class, 'messageUpdate']);
+    Route::get('/unmatched_claim/offer_search/{policy_id}', [ClaimsController::class, 'offerSearchUnmatched']);
+    Route::post('/unmatched_claim/convert/{claim_id}', [ClaimsController::class, 'unmatchedConvert']);
 
 
     /*

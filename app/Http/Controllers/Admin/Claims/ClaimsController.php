@@ -86,5 +86,54 @@ class ClaimsController extends Controller
             return $this->claimsService->updateClaim($data, $claim_id, true);
         }
     }
-
+    public function uploadFile(Request $request, $claim_id, $docType)
+    {
+        $data = $request->all();
+        if ($data['type'] == 'matched') {
+            return $this->claimsService->uploadFile($data, $claim_id, $docType);
+        } else {
+            return $this->claimsService->uploadFile($data, $claim_id, $docType, true);
+        }
+    }
+    public function deleteMessage(Request $request, $claim_id, $messageId)
+    {
+        $data = $request->all();
+        if ($data['type'] == 'matched') {
+            return $this->claimsService->deleteMessage($claim_id, $messageId);
+        } else {
+            return $this->claimsService->deleteMessage($claim_id, $messageId, true);
+        }
+    }
+    public function updateMessage(Request $request, $claim_id, $messageId)
+    {
+        $data = $request->all();
+        if ($data['type'] == 'matched') {
+            return $this->claimsService->updateMessage($data, $claim_id, $messageId);
+        } else {
+            return $this->claimsService->updateMessage($data, $claim_id, $messageId, true);
+        }
+    }
+    public function messageSubmit(Request $request, $claim_id)
+    {
+        $data = $request->all();
+        if ($data['type'] == 'matched') {
+            return $this->claimsService->submitMessage($data, $claim_id);
+        } else {
+            return $this->claimsService->submitMessage($data, $claim_id, true);
+        }
+    }
+    public function requestDocument(Request $request, $claim_id)
+    {
+        $data = $request->all();
+        if ($data['type'] == 'matched') {
+            return $this->claimsService->requestDocument($data, $claim_id);
+        } else {
+            return $this->claimsService->requestDocument($data, $claim_id, true);
+        }
+    }
+    public function updatePolicyID(Request $request, $claim_id)
+    {
+        $data = $request->all();
+        return $this->claimsService->updatePolicyID($data, $claim_id);
+    }
 }
