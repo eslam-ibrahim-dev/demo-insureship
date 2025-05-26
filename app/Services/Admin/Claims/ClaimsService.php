@@ -722,9 +722,8 @@ class ClaimsService
         95281, // AfterShip Test
     ];
 
-    public function updateClaim($request, $claimId, $isUnmatched = false): JsonResponse
+    public function updateClaim($data, $claimId, $isUnmatched = false): JsonResponse
     {
-        $data = $request;
         $user = auth('admin')->user();
         $admin = Admin::findOrFail($user->id);
 
