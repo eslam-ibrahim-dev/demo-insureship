@@ -21,6 +21,7 @@ class ClaimDetailResource extends JsonResource
                 'id'                => $claim->id,
                 'customer_name'     => $claim->customer_name,
                 'agent'             => $claim->assignedAdmin->name ?? 'Unassigned',
+                'agent_id'             => $claim->assignedAdmin->id ?? 0,
                 'filed_date'        => $claim->filed_date,
                 'ship_date'         => $claim->ship_date,
                 'claim_amount'      => $claim->claim_amount,
