@@ -27,6 +27,7 @@ class ExportClaimsRequest extends FormRequest
             'order_number'                      => ['nullable', 'string'],
             'claim_id'                          => ['nullable', 'integer'],
             'claimant_name'                     => ['nullable', 'string'],
+            'email'                     => ['nullable', 'string'],
             'filed_type'                        => ['nullable', 'in:matched,unmatched'],
             'admin_id'                          => ['nullable', 'integer'],
             'superclient_id'                    => ['nullable', 'integer'],

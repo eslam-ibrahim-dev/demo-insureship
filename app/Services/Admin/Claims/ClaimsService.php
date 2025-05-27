@@ -187,8 +187,10 @@ class ClaimsService
             };
         }
 
+       
+
         // generic filters
-        foreach (['start_date', 'end_date', 'tracking_number', 'order_number', 'claim_id', 'claimant_name', 'email'] as $f) {
+        foreach ([ 'email','start_date', 'end_date', 'tracking_number', 'order_number', 'claim_id', 'claimant_name'] as $f) {
             if (isset($filters[$f]) && $filters[$f] !== '') {
                 $v = $filters[$f];
                 $q->where(fn($qb) => $this->applyFilter($qb, $f, $v));
@@ -207,7 +209,6 @@ class ClaimsService
         $sf = $sf === 'claim_id' ? 'a.created' : $sf;
         $sd = $filters['sort_direction'] ?? 'desc';
         $q->orderByRaw("{$sf} {$sd}");
-
         return $q;
     }
 
@@ -216,9 +217,9 @@ class ClaimsService
         if ($f === 'claimant_name') {
             $qb->where('b.customer_name', 'like', "%{$v}%")
                 ->orWhere('c.customer_name', 'like', "%{$v}%");
-        } elseif ($f === 'email') {
-            $qb->where('b.email', 'like', "%{$v}%")
-                ->orWhere('c.email', 'like', "%{$v}%");
+        } elseif (strtolower($f) === 'email') {
+            $qb->where('b.email', '=', $v)
+                ->orWhere('c.email', '=', $v);
         } elseif ($f === 'claim_id') {
             $qb->where('a.id', $v)
                 ->orWhere('a.matched_claim_id', $v)
