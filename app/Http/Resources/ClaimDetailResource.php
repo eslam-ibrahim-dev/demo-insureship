@@ -66,7 +66,16 @@ class ClaimDetailResource extends JsonResource
                 'zip'                => $claim->order->billing_zip ?? null,
                 'country'            => $claim->order->billing_country ?? null,
             ],
-            'notes' => $claim?->notes?->map(function ($note) {
+            'client_notes' => $claim?->client?->notes?->map(function ($note) {
+                return [
+                    'id'         => $note->id,
+                    'note'       => $note->note,
+                    'type'       => $note->note_type,
+                    'admin'      => $note->admin->name ?? null,
+                    'created_at' => $note->created,
+                ];
+            }),
+            'subclient_notes' => $claim?->subclient?->notes?->map(function ($note) {
                 return [
                     'id'         => $note->id,
                     'note'       => $note->note,
