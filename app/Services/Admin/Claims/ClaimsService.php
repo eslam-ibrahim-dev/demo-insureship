@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -1447,21 +1448,22 @@ class ClaimsService
         $folder = $isUnmatched ? 'unmatched_claims' : 'matched_claims';
 
         // Generate a unique filename with original extension
-        $filePaths = [];
+        $fileUrls  = [];
 
         foreach ($files as $file) {
             $fileName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
             $extension = $file->getClientOriginalExtension();
             $uniqueName = "claim-{$claimId}-{$fileName}-" . uniqid() . ".{$extension}";
 
-            $filePaths[] = $file->storeAs(
+            $path[] = $file->storeAs(
                 "claims/{$folder}/{$claimId}",
                 $uniqueName,
                 'public'
             );
+            $fileUrls[] = Storage::url($path);
         }
 
-        return $filePaths;
+        return $fileUrls;
     }
 
     protected function addDocumentMessageToClaim(
