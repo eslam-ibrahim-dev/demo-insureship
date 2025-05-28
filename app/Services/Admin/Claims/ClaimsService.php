@@ -1444,9 +1444,12 @@ class ClaimsService
     protected function storeUploadedFile(Request $request, string $claimId, bool $isUnmatched)
     {
         $request->validate([
-            'file.*' => 'required|file|max:10240',
+            'file.*' => 'nullable|file|max:10240',
         ]);
 
+        if (!$request->hasFile('file')) {
+            return [];
+        }
         $files = $request->file('file');
         $folder = $isUnmatched ? 'unmatched_claims' : 'matched_claims';
 
