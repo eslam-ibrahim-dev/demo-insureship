@@ -42,7 +42,7 @@ class AdminService
     public function getClaimsAgent()
     {
         $admins = Admin::where('status', 'Active')
-            ->whereIn('level', ['Claims Admin', 'Claims Agent'])
+            ->whereIn('level', ['Claims Admin', 'Claims Agent','Super Admin'])
             ->get(['id', 'name', 'level', 'status']);
         return response()->json([
             'status' => 'success',
