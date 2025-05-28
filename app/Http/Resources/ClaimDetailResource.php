@@ -92,6 +92,7 @@ class ClaimDetailResource extends JsonResource
                     'message'       => $message->message ??null,
                     'type'       => $message->type ?? null,
                     'admin_id'      => $message->admin_id ?? null,
+                    'claim_id'      => $message->claim_id ?? null,
                     'document_type'       => $message->document_type ?? null,
                     'document_file'       => $message->document_file ?? null,
                     'document_upload'       => $message->document_upload ?? null,
