@@ -19,6 +19,7 @@ class ClaimDetailResource extends JsonResource
         return [
             'claim_info' => [
                 'id'                => $claim->id,
+                'master_claim_id'   => $claim->claimLink->id,
                 'customer_name'     => $claim->customer_name,
                 'agent'             => $claim->assignedAdmin->name ?? 'Unassigned',
                 'admin_id'             => $claim->assignedAdmin->id ?? 0,
@@ -82,6 +83,21 @@ class ClaimDetailResource extends JsonResource
                     'type'       => $note->note_type,
                     'admin'      => $note->admin->name ?? null,
                     'created_at' => $note->created,
+                ];
+            }),
+            'notes' => $claim?->messages?->sortByDesc('created')->map(function ($message) {
+                return [
+                    'id'         => $message->id,
+                    'unread'       => $message->unread,
+                    'message'       => $message->message ??null,
+                    'type'       => $message->type ?? null,
+                    'admin_id'      => $message->admin_id ?? null,
+                    'document_type'       => $message->document_type ?? null,
+                    'document_file'       => $message->document_file ?? null,
+                    'document_upload'       => $message->document_upload ?? null,
+                    'file_ip_address'       => $message->file_ip_address ?? null,
+                    'created_at' => $message->created,
+                    'updated_at' => $message->updated,
                 ];
             }),
             'offers_info' => method_exists($claim, 'offers')
