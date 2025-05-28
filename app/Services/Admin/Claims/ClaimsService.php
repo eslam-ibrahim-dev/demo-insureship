@@ -1461,7 +1461,7 @@ class ClaimsService
             $extension = $file->getClientOriginalExtension();
             $uniqueName = "claim-{$claimId}-{$fileName}-" . uniqid() . ".{$extension}";
 
-            $path[] = $file->storeAs(
+            $path = $file->storeAs(
                 "claims/{$folder}/{$claimId}",
                 $uniqueName,
                 'public'
