@@ -20,7 +20,7 @@ use App\Models\Order;
 use App\Models\Order_Offer;
 use App\Models\Store;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Request;
+use Illuminate\Http\Request;
 use Symfony\Component\Intl\Countries;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\File;
@@ -187,10 +187,10 @@ class ClaimsService
             };
         }
 
-       
+
 
         // generic filters
-        foreach ([ 'email','start_date', 'end_date', 'tracking_number', 'order_number', 'claim_id', 'claimant_name'] as $f) {
+        foreach (['email', 'start_date', 'end_date', 'tracking_number', 'order_number', 'claim_id', 'claimant_name'] as $f) {
             if (isset($filters[$f]) && $filters[$f] !== '') {
                 $v = $filters[$f];
                 $q->where(fn($qb) => $this->applyFilter($qb, $f, $v));
@@ -420,7 +420,7 @@ class ClaimsService
             ? ClaimUnmatched::findOrFail($claimId)
             : Claim::with('order')->find($claimId);
 
-            $order = $isUnmatched ? null : $claim->order;
+        $order = $isUnmatched ? null : $claim->order;
 
         // Get claim link based on claim type
         $claimLink = $isUnmatched
@@ -1411,7 +1411,7 @@ class ClaimsService
         $orderOffer->update(['claim_id' => $claimId]);
     }
     //////////////////////////////////////////// upload file 
-    public function uploadFile($data, string $claimId, string $docType, bool $isUnmatched = false): JsonResponse
+    public function uploadFile($request, string $claimId, string $docType, bool $isUnmatched = false): JsonResponse
     {
         $admin = auth('admin')->user();
 
@@ -1421,38 +1421,47 @@ class ClaimsService
 
         $claim->update(['unread' => 0]);
 
-        $filePath = $this->storeUploadedFile($data, $claimId, $isUnmatched);
+        $filePaths = $this->storeUploadedFile($request, $claimId, $isUnmatched);
 
         // Add message to claim
-        $this->addDocumentMessageToClaim(
-            claim: $claim,
-            claimId: $claimId,
-            docType: $docType,
-            fileName: $filePath,
-            adminId: $admin->id
-        );
+        foreach ($filePaths as $filePath) {
+            $this->addDocumentMessageToClaim(
+                claim: $claim,
+                claimId: $claimId,
+                docType: $docType,
+                fileName: $filePath,
+                adminId: $admin->id
+            );
+        }
 
         return response()->json(['message' => 'File has been uploaded']);
     }
 
-    protected function storeUploadedFile(Request $request, string $claimId, bool $isUnmatched): string
+    protected function storeUploadedFile(Request $request, string $claimId, bool $isUnmatched)
     {
         $request->validate([
-            'file' => 'required|file|max:10240',
+            'file.*' => 'required|file|max:10240',
         ]);
 
-        $file = $request->file('file');
+        $files = $request->file('file');
         $folder = $isUnmatched ? 'unmatched_claims' : 'matched_claims';
 
         // Generate a unique filename with original extension
-        $fileName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
-        $extension = $file->getClientOriginalExtension();
-        $uniqueName = "claim-{$claimId}-{$fileName}-" . uniqid() . ".{$extension}";
+        $filePaths = [];
 
-        return $file->storeAs(
-            "claims/{$folder}/{$claimId}",
-            $uniqueName
-        );
+        foreach ($files as $file) {
+            $fileName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
+            $extension = $file->getClientOriginalExtension();
+            $uniqueName = "claim-{$claimId}-{$fileName}-" . uniqid() . ".{$extension}";
+
+            $filePaths[] = $file->storeAs(
+                "claims/{$folder}/{$claimId}",
+                $uniqueName,
+                'public'
+            );
+        }
+
+        return $filePaths;
     }
 
     protected function addDocumentMessageToClaim(

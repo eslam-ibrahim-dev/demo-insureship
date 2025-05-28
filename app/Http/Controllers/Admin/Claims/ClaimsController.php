@@ -88,11 +88,10 @@ class ClaimsController extends Controller
     }
     public function uploadFile(Request $request, $claim_id, $docType)
     {
-        $data = $request->all();
-        if ($data['fill-type'] == 'matched') {
-            return $this->claimsService->uploadFile($data, $claim_id, $docType);
+        if ($request->input('fill-type') == 'matched') {
+            return $this->claimsService->uploadFile($request, $claim_id, $docType);
         } else {
-            return $this->claimsService->uploadFile($data, $claim_id, $docType, true);
+            return $this->claimsService->uploadFile($request, $claim_id, $docType, true);
         }
     }
     public function deleteMessage(Request $request, $claim_id, $messageId)
