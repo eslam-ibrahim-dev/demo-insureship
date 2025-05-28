@@ -11,6 +11,7 @@ class ClaimPayment extends Model
     protected $fillable = [
         'id',
         'claim_link_id',
+        'client_id',
         'payment_type',
         'payment_name',
         'address1',
@@ -31,6 +32,10 @@ class ClaimPayment extends Model
         'created',
     ];
 
+    public $timestamps = false;
+
+    const CREATED_AT = 'created';
+
     protected $table = "osis_claim_payment";
 
     public function claim_payment_update(&$id, &$data)
@@ -48,16 +53,14 @@ class ClaimPayment extends Model
             ->update($updates_arr);
     }
 
-    
+
 
     public function get_by_claim_link_id($claim_link_id)
     {
         $results = (array) DB::table('osis_claim_payment')
-                    ->where('claim_link_id', $claim_link_id)
-                    ->first();  // بدلاً من selectone، نستخدم first لجلب أول نتيجة
+            ->where('claim_link_id', $claim_link_id)
+            ->first();  // بدلاً من selectone، نستخدم first لجلب أول نتيجة
 
         return $results ?: null;  // إذا كانت النتيجة فارغة، نرجع null
     }
-
-
 }

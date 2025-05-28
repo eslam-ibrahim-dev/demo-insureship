@@ -133,16 +133,16 @@ Route::middleware(['jwt.auth'])->group(function () {
      */
     Route::get('/claim/{claim_id}', [ClaimsController::class, 'detailPage']);
 
-    Route::post('/claim/{claim_id}/approved-submit', [ClaimsController::class, 'approvedSubmit'])->name('admin_claim_approved_submit');
-    Route::post('/claim/{claim_id}/approved-submit/no-pay-out', [ClaimsController::class, 'approvedSubmitNoPayOut']);
+    Route::post('/claim/{claim_id}/approved-submit', [ClaimsController::class, 'approvedSubmit']);
+    // Route::post('/claim/{claim_id}/approved-submit/no-pay-out', [ClaimsController::class, 'approvedSubmitNoPayOut']);
     Route::put('/claim/{claim_id}/update', [ClaimsController::class, 'updateClaim']);
     Route::post('/claim/{claim_id}/request_document', [ClaimsController::class, 'requestDocument']);
     Route::post('/claim/{claim_id}/message-submit', [ClaimsController::class, 'messageSubmit']);
     Route::post('/claim/{claim_id}/upload-file/{doc_type}', [ClaimsController::class, 'uploadFile']);
     Route::post('/claim/{claim_id}/update_policy_id', [ClaimsController::class, 'updatePolicyID']);
     Route::get('/claim/{claim_id}/print', [ClaimsController::class, 'printClaim'])->name('admin_claim_print');
-    Route::delete('/claim/{claim_id}/message-delete/{claim_message_id}', [ClaimsController::class, 'messageDelete']);
-    Route::put('/claim/{claim_id}/message-update/{claim_message_id}', [ClaimsController::class, 'messageUpdate']);
+    Route::delete('/claim/{claim_id}/message-delete/{claim_message_id}', [ClaimsController::class, 'deleteMessage']);
+    Route::put('/claim/{claim_id}/message-update/{claim_message_id}', [ClaimsController::class, 'updateMessage']);
     Route::get('/unmatched_claim/offer_search/{policy_id}', [ClaimsController::class, 'offerSearchUnmatched']);
     Route::post('/unmatched_claim/convert/{claim_id}', [ClaimsController::class, 'unmatchedConvert']);
 

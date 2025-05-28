@@ -415,13 +415,12 @@ class ClaimsService
     {
         $user = auth('admin')->user();
         $admin = Admin::findOrFail($user->id);
-
         // Get claim with appropriate relationships
         $claim = $isUnmatched
             ? ClaimUnmatched::findOrFail($claimId)
-            : Claim::with('order')->findOrFail($claimId);
+            : Claim::with('order')->find($claimId);
 
-        $order = $isUnmatched ? null : $claim->order;
+            $order = $isUnmatched ? null : $claim->order;
 
         // Get claim link based on claim type
         $claimLink = $isUnmatched
@@ -444,7 +443,6 @@ class ClaimsService
             $claim,
             $isUnmatched
         );
-
         // Save payment
         ClaimPayment::updateOrCreate(
             ['claim_link_id' => $claimLink->id],
@@ -455,7 +453,7 @@ class ClaimsService
         // $this->sendApprovalEmail($claim, $order, $claimLink, $isUnmatched);
 
         // Trigger webhook
-        $this->triggerWebhook($claim, $order, $claimLink, $data, $isUnmatched);
+        // $this->triggerWebhook($claim, $order, $claimLink, $data, $isUnmatched);
 
         // Add admin note
         $claim->messages()->create([
@@ -464,7 +462,7 @@ class ClaimsService
             'admin_id' => $admin->id,
         ]);
 
-        return response()->json(['status' => 'updated']);
+        return response()->json(['status' => 'claim approved successfully']);
     }
 
     protected function processPayment(
@@ -527,7 +525,6 @@ class ClaimsService
     ): array {
         $addressFields = ['address1', 'address2', 'city', 'state', 'zip', 'country'];
         $address = [];
-
         switch ($data['address_type']) {
             case 'shipping_address':
                 if ($isUnmatched) {
@@ -746,7 +743,7 @@ class ClaimsService
             ? ClaimLink::where('unmatched_claim_id', $claimId)->firstOrFail()
             : ClaimLink::where('matched_claim_id', $claimId)->firstOrFail();
 
-        if ($data['admin_id']) {
+        if (!isset($data['admin_id'])) {
             $data['admin_id'] = $admin->id;
         } else {
             $data['admin_id'] = 0;
@@ -762,11 +759,10 @@ class ClaimsService
                 $isUnmatched
             );
         }
-
         // Final claim update
         $claim->update(array_merge(['unread' => 0], $data));
 
-        return response()->json(['status' => 'updated']);
+        return response()->json(['status' => 'Claim Updated Successfully']);
     }
 
     protected function handleStatusChange(array &$data, $claim, $claimLink, $order, bool $isUnmatched): void
@@ -1105,9 +1101,8 @@ class ClaimsService
     ///////////////////////////////////  Message Submit :
 
 
-    public function submitMessage($request, $claimId, $isUnmatched = false): JsonResponse
+    public function submitMessage($data, $claimId, $isUnmatched = false): JsonResponse
     {
-        $data = $request->all();
         $admin = auth('admin')->user();
 
         // Get claim with appropriate relationships
@@ -1270,10 +1265,8 @@ class ClaimsService
 
     ////////////////////////////////////// Update Message 
 
-    public function updateMessage($request, $claimId, $messageId, $isUnmatched = false): JsonResponse
+    public function updateMessage($data, $claimId, $messageId, $isUnmatched = false): JsonResponse
     {
-        $data = $request->all();
-
         // Get appropriate claim model based on type
         $claim = $isUnmatched
             ? ClaimUnmatched::find($claimId)

@@ -71,7 +71,7 @@ class ClaimsController extends Controller
     public function approvedSubmit(Request $request, $claim_id)
     {
         $data = $request->all();
-        if ($data['type'] == 'matched') {
+        if ($data['fill-type'] == 'matched') {
             return $this->claimsService->approveClaim($data, $claim_id);
         } else {
             return $this->claimsService->approveClaim($data, $claim_id, true);
@@ -80,7 +80,7 @@ class ClaimsController extends Controller
     public function updateClaim(Request $request, $claim_id)
     {
         $data = $request->all();
-        if ($data['type'] == 'matched') {
+        if ($data['fill-type'] == 'matched') {
             return $this->claimsService->updateClaim($data, $claim_id);
         } else {
             return $this->claimsService->updateClaim($data, $claim_id, true);
@@ -89,7 +89,7 @@ class ClaimsController extends Controller
     public function uploadFile(Request $request, $claim_id, $docType)
     {
         $data = $request->all();
-        if ($data['type'] == 'matched') {
+        if ($data['fill-type'] == 'matched') {
             return $this->claimsService->uploadFile($data, $claim_id, $docType);
         } else {
             return $this->claimsService->uploadFile($data, $claim_id, $docType, true);
@@ -98,7 +98,7 @@ class ClaimsController extends Controller
     public function deleteMessage(Request $request, $claim_id, $messageId)
     {
         $data = $request->all();
-        if ($data['type'] == 'matched') {
+        if ($data['fill-type'] == 'matched') {
             return $this->claimsService->deleteMessage($claim_id, $messageId);
         } else {
             return $this->claimsService->deleteMessage($claim_id, $messageId, true);
@@ -107,7 +107,7 @@ class ClaimsController extends Controller
     public function updateMessage(Request $request, $claim_id, $messageId)
     {
         $data = $request->all();
-        if ($data['type'] == 'matched') {
+        if ($data['fill-type'] == 'matched') {
             return $this->claimsService->updateMessage($data, $claim_id, $messageId);
         } else {
             return $this->claimsService->updateMessage($data, $claim_id, $messageId, true);
@@ -116,7 +116,7 @@ class ClaimsController extends Controller
     public function messageSubmit(Request $request, $claim_id)
     {
         $data = $request->all();
-        if ($data['type'] == 'matched') {
+        if ($data['fill-type'] == 'matched') {
             return $this->claimsService->submitMessage($data, $claim_id);
         } else {
             return $this->claimsService->submitMessage($data, $claim_id, true);
@@ -125,7 +125,7 @@ class ClaimsController extends Controller
     public function requestDocument(Request $request, $claim_id)
     {
         $data = $request->all();
-        if ($data['type'] == 'matched') {
+        if ($data['fill-type'] == 'matched') {
             return $this->claimsService->requestDocument($data, $claim_id);
         } else {
             return $this->claimsService->requestDocument($data, $claim_id, true);

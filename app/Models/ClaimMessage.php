@@ -23,6 +23,8 @@ class ClaimMessage extends Model
         'updated'
     );
 
+    const CREATED_AT = 'created';
+    const UPDATED_AT = 'updated';
     public function claim()
     {
         return $this->belongsTo(Claim::class, 'claim_id');

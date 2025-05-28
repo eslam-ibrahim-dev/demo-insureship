@@ -22,6 +22,9 @@ class ClaimMessageUnmatched extends Model
         'created',
         'updated'
     );
+
+    const CREATED_AT = 'created';
+    const UPDATED_AT = 'updated';
     public function admin()
     {
         return $this->belongsTo(Admin::class, 'admin_id');
