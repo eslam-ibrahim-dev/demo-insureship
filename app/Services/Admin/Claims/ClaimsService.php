@@ -1435,7 +1435,10 @@ class ClaimsService
             );
         }
 
-        return response()->json(['message' => 'File has been uploaded']);
+        return response()->json([
+            'message' => 'File has been uploaded',
+            'files' => $filePaths,
+        ]);
     }
 
     protected function storeUploadedFile(Request $request, string $claimId, bool $isUnmatched)
