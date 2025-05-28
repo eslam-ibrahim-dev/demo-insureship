@@ -99,7 +99,7 @@ class ClaimDetailResource extends JsonResource
                     'created_at' => $message->created,
                     'updated_at' => $message->updated,
                 ];
-            })->values(),
+            })->toArray(),
             'offers_info' => method_exists($claim, 'offers')
                 ? $claim?->offers?->map(function ($offer) {
                     return [
