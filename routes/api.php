@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\Accounting\InvoiceController;
 use App\Http\Controllers\Admin\Note\NoteController;
 use App\Http\Controllers\ModuleController;
 use Illuminate\Support\Facades\Route;
@@ -168,10 +169,23 @@ Route::middleware(['jwt.auth'])->group(function () {
         Route::delete('/{superclient_id}/delete_file/{file_id}', [SuperclientController::class, 'deleteFile'])->name('admin_superclient_detail_delete_file');
     });
 
+    /* ************************ Acounting *****************************/
+    Route::prefix('invoices')->group(function () {
+        Route::get('', [InvoiceController::class, 'index']);
+        Route::post('createInvoice', [InvoiceController::class, 'createInvoice']);
+        Route::get('invoiceDetail/{id}', [InvoiceController::class, 'showInvoiceDetail']);
+        Route::put('/invoiceDetail/{invoice}/line-items', [InvoiceController::class, 'updateInvoiceDetails']);
+        Route::put('/invoiceNote/{invoice}', [InvoiceController::class, 'updateInvoiceNote']);
+        Route::delete('/line-items/{lineItemId}', [InvoiceController::class, 'deleteInvoiceLineItem']);
+        Route::delete('/{invoiceId}', [InvoiceController::class, 'delete']);
+        Route::post('/{id}/approve', [InvoiceController::class, 'approve']);
+    });
+
+    /************************************************************ */
 
     /*
     *   Prospect Controller
-*/
+    */
 
     Route::get('/prospects', [ProspectController::class, 'listPage'])->name('admin_prospect_list');
     Route::get('/add_prospect', [ProspectController::class, 'addProspectPage'])->name('admin_prospect_add');

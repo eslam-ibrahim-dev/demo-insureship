@@ -14,7 +14,7 @@ class Client extends Model
 
     use Notifiable;
 
-    protected $table = 'osis_client'; // database name
+    protected $table = 'osis_client';
     protected $fillable = [
         'id',
         'superclient_id',
@@ -43,7 +43,7 @@ class Client extends Model
         'updated'
     ];
 
-     public function superclient()
+    public function superclient()
     {
         return $this->belongsTo(Superclient::class, 'superclient_id', 'id');
     }
@@ -189,6 +189,10 @@ class Client extends Model
     }
 
 
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class, 'invoice_id');
+    }
 
     public function api_key_exists($api_key)
     {
@@ -242,7 +246,7 @@ class Client extends Model
             ->where('account_type', 'client');
     }
 
-     public function notes()
+    public function notes()
     {
         return $this->hasMany(Note::class, 'parent_id')->where('parent_type', 'client');
     }
