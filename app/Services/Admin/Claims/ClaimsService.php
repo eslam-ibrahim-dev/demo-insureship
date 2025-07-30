@@ -742,8 +742,8 @@ class ClaimsService
         $claimLink = $isUnmatched
             ? ClaimLink::where('unmatched_claim_id', $claimId)->firstOrFail()
             : ClaimLink::where('matched_claim_id', $claimId)->firstOrFail();
-
-        if (!isset($data['admin_id'])) {
+            
+        if (isset($data['admin_id'])) {
             $data['admin_id'] = $admin->id;
         } else {
             $data['admin_id'] = 0;
