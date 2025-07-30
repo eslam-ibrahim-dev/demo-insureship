@@ -84,8 +84,7 @@ class ClaimsService
         $claimLink = ClaimLink::where('matched_claim_id', $claim_id)
             ->orWhere('unmatched_claim_id', $claim_id)
             ->first();
-
-        if ($claimLink->matched_claim_id == $claim_id) {
+        if ($claimLink?->matched_claim_id == $claim_id) {
             $claimLink->load([
                 'matchedClaim.subclient.contacts',
                 'matchedClaim.subclient.notes.admin',
@@ -952,7 +951,7 @@ class ClaimsService
     /////////////////////////////// Request Document : 
     public function requestDocument($request, $claimId, $isUnmatched = false): JsonResponse
     {
-        $data = $request->all();
+        $data = $request;
         $admin = auth('admin')->user();
 
         $claim = $isUnmatched

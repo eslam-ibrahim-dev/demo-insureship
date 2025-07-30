@@ -279,7 +279,7 @@ class Claim extends Model
         $sortDirection = $data['sort_direction'] ?? 'desc';
 
         $results = $baseQuery
-            ->orderBy($sortField, $sortDirection)
+            ->orderByRaw("$sortField $sortDirection")
             ->offset(($page - 1) * 30)
             ->limit(30)
             ->get();

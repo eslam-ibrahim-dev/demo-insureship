@@ -168,8 +168,7 @@ class ClaimUnmatched extends Model
         }
 
         if (!empty($data['include_test_entity']) && $data['include_test_entity'] == 1) {
-            $baseQuery->where('f.is_test_account', '=', 1)
-                ->where('g.is_test_account', '=', 1);
+            $baseQuery->where('f.is_test_account', '=', 1);
         }
 
         if (!empty($data['include_claimant_payment_supplied'])) {
@@ -215,7 +214,7 @@ class ClaimUnmatched extends Model
         if (!empty($data['merchant_id'])) {
             $baseQuery->where('a.merchant_id', $data['merchant_id']);
         }
-        $extraFields = ['order_number', 'client_id', 'subclient_id', 'claim_type'];
+        $extraFields = ['order_number', 'client_id', 'subclient_id'];
         foreach ($extraFields as $field) {
             if (!empty($data[$field])) {
                 $baseQuery->where("a.$field", $data[$field]);
