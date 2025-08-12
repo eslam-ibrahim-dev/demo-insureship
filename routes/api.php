@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\Accounting\InvoiceController;
 use App\Http\Controllers\Admin\Note\NoteController;
 use App\Http\Controllers\ModuleController;
+use App\Http\Controllers\QuickbooksController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\Auth\AuthController;
 use App\Http\Controllers\Admin\Bugs\BugsController;
@@ -36,7 +37,7 @@ Route::group([
 
 Route::middleware(['jwt.auth'])->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->name('register');
-    Route::post('/updateAdmin/{id}', [AuthController::class, 'update'])->name('register');
+    Route::post('/updateAdmin/{id}', [AuthController::class, 'update'])->name('updateAdmin');
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
     Route::get('/modules', [ModuleController::class, 'index']);
@@ -169,6 +170,19 @@ Route::middleware(['jwt.auth'])->group(function () {
         Route::delete('/{superclient_id}/delete_file/{file_id}', [SuperclientController::class, 'deleteFile'])->name('admin_superclient_detail_delete_file');
     });
 
+    /* ************************ QuickBooks *****************************/
+
+    Route::get('/quickbooks/auth', [QuickbooksController::class, 'authPage']);
+    Route::get('/accounting/quickbooks/auth/connect', [QuickbooksController::class, 'authConnect']);
+
+
+
+
+
+
+
+
+    /************************************************************ */
     /* ************************ Acounting *****************************/
     Route::prefix('invoices')->group(function () {
         Route::get('', [InvoiceController::class, 'index']);

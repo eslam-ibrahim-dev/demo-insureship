@@ -17,9 +17,9 @@ class ShaUserProvider extends EloquentUserProvider
             return true;
         }
 
-        if (Hash::check($plain, $stored)) {
-            return true;
-        }
+        // if (Hash::check($plain, $stored)) {
+        //     return true;
+        // }
 
         return false;
     }

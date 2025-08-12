@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\client\Settingspage;
+namespace App\Services\Client\Settingspage;
 
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use App\Models\ClientLogin;

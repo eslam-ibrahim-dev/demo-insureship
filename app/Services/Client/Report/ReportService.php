@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\client\Report;
+namespace App\Services\Client\Report;
 use App\Models\Report;
 use App\Models\SubClient;
 use App\Models\ClientLoginPermission;

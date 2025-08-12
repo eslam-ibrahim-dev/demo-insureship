@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Client\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClientLogin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 
 class AuthController extends Controller
@@ -70,6 +72,24 @@ class AuthController extends Controller
 
     public function me()
     {
-        return response()->json(auth('client')->user());
+        try {
+            auth()->shouldUse('client');
+            $user = JWTAuth::parseToken()->authenticate();
+
+            if (!$user) {
+                return response()->json(['error' => 'Unauthenticated'], 401);
+            }
+
+            return response()->json([
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'permissions' => $user->permissions->pluck('module')
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Invalid token'], 401);
+        }
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Resources\ClaimDetailResource;
 use App\Models\ClientPermission;
 use App\Models\Claim;
 use App\Models\ClaimLink;
+use App\Repositories\ClaimRepository;
 use Illuminate\Support\Str;
 use App\Models\ClaimUnmatched;
 use Illuminate\Contracts\Database\Query\Builder;
@@ -23,11 +24,12 @@ class ClaimsService
     public $sg_clients = array(56854, 56863, 56856, 56862, 56855, 56866, 56864, 56858);
 
     // Could have broken up the fields by the underscore and capitalized, however this gives greater control
-
+    private $claimRepo;
     protected array $columns;
 
-    public function __construct()
+    public function __construct(ClaimRepository $claimRepository)
     {
+        $this->claimRepo = $claimRepository;
         $this->columns = [
             'matched'   => Schema::getColumnListing('osis_claim'),
             'unmatched' => Schema::getColumnListing('osis_claim_unmatched'),
@@ -201,51 +203,49 @@ class ClaimsService
 
     ///////////////////////////////////// Get Claims ////////////////////////////////////////////////////
 
-    public function getClaimsList($request)
-    {
-        $clientId = auth('client')->user();
-        $matchedCount = DB::table('osis_claim_type_link as a')
-            ->join('osis_claim as b', 'a.matched_claim_id', 'b.id')
-            ->where('b.client_id', $clientId)
-            ->count('a.id');
+    // public function getClaimsList($request)
+    // {
+    //     $clientId = auth('client')->user()->client_id;
+    //     $matchedCount = DB::table('osis_claim_type_link as a')
+    //         ->join('osis_claim as b', 'a.matched_claim_id', 'b.id')
+    //         ->where('b.client_id', $clientId)
+    //         ->count('a.id');
 
-        $unmatchedCount = DB::table('osis_claim_type_link as a')
-            ->join('osis_claim_unmatched as c', 'a.unmatched_claim_id', 'c.id')
-            ->where('c.client_id', $clientId)
-            ->count('a.id');
+    //     $unmatchedCount = DB::table('osis_claim_type_link as a')
+    //         ->join('osis_claim_unmatched as c', 'a.unmatched_claim_id', 'c.id')
+    //         ->where('c.client_id', $clientId)
+    //         ->count('a.id');
 
-        $total = $matchedCount + $unmatchedCount;
+    //     $total = $matchedCount + $unmatchedCount;
 
-        $baseQuery = DB::table('osis_claim_type_link as a')
-            ->select([
-                'a.id as master_claim_id',
-                'a.matched_claim_id',
-                'a.unmatched_claim_id',
-                DB::raw('COALESCE(b.client_id, c.client_id) as client_id'),
-                DB::raw('COALESCE(b.subclient_id, c.subclient_id) as subclient_id'),
-                DB::raw('COALESCE(b.order_number, c.order_number) as order_number'),
-                DB::raw('COALESCE(b.claim_amount, c.claim_amount, 0) as claim_amount'),
-                DB::raw('COALESCE(b.customer_name, c.customer_name) as customer_name'),
-                DB::raw('COALESCE(b.status, c.status) as status'),
-                DB::raw('COALESCE(b.filed_date, c.filed_date) as filed_date'),
-            ])
-            ->leftJoin('osis_claim as b', 'a.matched_claim_id', '=', 'b.id')
-            ->leftJoin('osis_claim_unmatched as c', 'a.unmatched_claim_id', '=', 'c.id')
-            ->leftJoin('osis_subclient as sc_b', 'b.subclient_id', '=', 'sc_b.id')
-            ->leftJoin('osis_subclient as sc', DB::raw('COALESCE(b.subclient_id, c.subclient_id)'), '=', 'sc.id')
-            ->addSelect('sc.name as subclient_name')->where('b.client_id', $clientId)->orWhere('c.client_id', $clientId);
-
-        $this->applyFilters($baseQuery, $request);
-        $perPage = $request['per_page'] ?? 20;
-        $claims = $baseQuery->simplePaginate($perPage);
-
-        return response()->json([
-            'data' => $claims->items(),
-            'total' => $total,
-            'current_page' => $claims->currentPage(),
-            'per_page' => $claims->perPage()
-        ]);
-    }
+    //     $baseQuery = DB::table('osis_claim_type_link as a')
+    //         ->select([
+    //             'a.id as master_claim_id',
+    //             'a.matched_claim_id',
+    //             'a.unmatched_claim_id',
+    //             DB::raw('COALESCE(b.client_id, c.client_id) as client_id'),
+    //             DB::raw('COALESCE(b.subclient_id, c.subclient_id) as subclient_id'),
+    //             DB::raw('COALESCE(b.order_number, c.order_number) as order_number'),
+    //             DB::raw('COALESCE(b.claim_amount, c.claim_amount, 0) as claim_amount'),
+    //             DB::raw('COALESCE(b.customer_name, c.customer_name) as customer_name'),
+    //             DB::raw('COALESCE(b.status, c.status) as status'),
+    //             DB::raw('COALESCE(b.filed_date, c.filed_date) as filed_date'),
+    //         ])
+    //         ->leftJoin('osis_claim as b', 'a.matched_claim_id', '=', 'b.id')
+    //         ->leftJoin('osis_claim_unmatched as c', 'a.unmatched_claim_id', '=', 'c.id')
+    //         ->leftJoin('osis_subclient as sc_b', 'b.subclient_id', '=', 'sc_b.id')
+    //         ->leftJoin('osis_subclient as sc', DB::raw('COALESCE(b.subclient_id, c.subclient_id)'), '=', 'sc.id')
+    //         ->addSelect('sc.name as subclient_name')->where('b.client_id', $clientId)->orWhere('c.client_id', $clientId);
+    //     $this->applyFilters($baseQuery, $request);
+    //     $perPage = $request['per_page'] ?? 20;
+    //     $claims = $baseQuery->simplePaginate($perPage);
+    //     return response()->json([
+    //         'data' => $claims->items(),
+    //         'total' => $total,
+    //         'current_page' => $claims->currentPage(),
+    //         'per_page' => $claims->perPage()
+    //     ]);
+    // }
 
     protected function applyFilters($query, array $filters): void
     {
@@ -300,6 +300,21 @@ class ClaimsService
         }
     }
 
+    public function getClaimsList(array $filters)
+    {
+        $page      = $filters['page'] ?? 1;
+        $perPage   = 30;
+        $sortField = $filters['sort_field'] ?? 'a.created';
+        $sortDir   = $filters['sort_direction'] ?? 'DESC';
+
+        $results = $this->claimRepo->getClaims($filters, $page, $perPage, $sortField, $sortDir);
+
+
+        return [
+            'data' => $results,
+        ];
+    }
+
     protected function applySorting($query, array $filters): void
     {
         $sortField = $filters['sort_field'] ?? 'a.created';
@@ -347,5 +362,4 @@ class ClaimsService
 
         return new ClaimDetailResource($claim);
     }
-
 }

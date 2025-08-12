@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Accounting;
 
 use App\Http\Controllers\Controller;
+use App\Models\Rate;
 use App\Services\Admin\Accounting\InvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -65,6 +66,33 @@ class InvoiceController extends Controller
         return response()->json([
             'message'    => 'Success',
             'invoice_id' => $invoice->id,
+        ], 201);
+    }
+    public function createRate(Request $request): JsonResponse
+    {
+        $user = auth('admin')->user();
+
+        if (!$user || $user->level === 'Guest Admin') {
+            return response()->json([
+                'message' => 'Access denied: Guest Admins are not allowed.'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'client_id'     => 'required|integer|exists:osis_client,id',
+            'info'                  => 'nullable|string|max:255',
+            'carrier'               => 'nullable|string|max:255',
+            'rate_domestic'         => 'nullable|numeric|min:0',
+            'rate_type_domestic'    => 'required|in:value,percentage',
+            'rate_international'    => 'nullable|numeric|min:0',
+            'rate_type_international' => 'required|in:value,percentage',
+        ]);
+
+        $rate = Rate::create($validated);
+
+        return response()->json([
+            'message'    => 'Success',
+            'rate_id' => $rate->id,
         ], 201);
     }
 

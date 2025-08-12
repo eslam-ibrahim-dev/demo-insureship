@@ -13,6 +13,7 @@
         "league/csv": "^9.20",
         "maatwebsite/excel": "^3.1",
         "php-open-source-saver/jwt-auth": "^2.3",
+        "quickbooks/v3-php-sdk": "^6.2",
         "symfony/intl": "^7.2"
     },
     "require-dev": {

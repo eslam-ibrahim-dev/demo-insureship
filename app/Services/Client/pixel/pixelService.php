@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\client\pixel;
+namespace App\Services\Client\pixel;
 
 use App\Models\SubClient;
 use App\Models\ClientLoginPermission;

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
-use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;  // Add the JWT facade
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;  
 
 
 
@@ -231,18 +231,15 @@ class AuthController extends Controller
             $token = JWTAuth::parseToken()->getToken();
             $decoded = JWTAuth::decode($token);
 
-            // Check if the 'sub' claim exists in the decoded token
             if (!isset($decoded['sub'])) {
                 return response()->json(['error' => 'Token is invalid'], 401);
             }
 
             $userId = $decoded['sub'];
             $user = Admin::with(['permissions' => function ($query) {
-                // Select only the 'admin_id' and 'module' columns from the permissions table
                 $query->select('admin_id', 'module');
-            }])->find($userId);  // Assuming Admin model for the authenticated user
+            }])->find($userId); 
 
-            // Debug: Check if the user is found
             if (!$user) {
                 return response()->json(['error' => 'User not found in the database'], 404);
             }

@@ -22,25 +22,11 @@ class ClaimsController extends Controller
     {
         $this->claimsService = $claimsService;
     }
-    public function getClaimsData(Request $request)
-    {
-        $claims = $this->claimsService->getClientClaimsList($request->all());
-
-        return response()->json([
-            'data' => $claims,
-            'meta' => [
-                'page' => (int)($request->input('page', 1)),
-                'per_page' => 30,
-                'total' => $claims->count()
-            ]
-        ]);
-    }
 
     public function getClientClaimsList(ListClaimsRequest $request): JsonResponse
     {
-        $filters = $request->validated();
-        $query = $this->claimsService->getClaimsList($filters);
-        return $query;
+        $filters = $request->all();
+        return response()->json($this->claimsService->getClaimsList($filters));
     }
 
     public function newClaimSubmit(Request $request): JsonResponse

@@ -1,5 +1,5 @@
 <?php
-namespace App\Services\client\Referral;
+namespace App\Services\Client\Referral;
 
 use Illuminate\Support\Facades\DB;
 use App\Models\ClientLoginPermission;
