@@ -178,7 +178,7 @@ class AuthController extends Controller
         }
 
         $credentials = $request->only(['username', 'password']);
-
+        // dd($credentials);
         try {
             if (!$token = auth('admin')->attempt($credentials)) {
                 return response()->json([

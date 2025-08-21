@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client\Order;
 
 use App\Services\Client\Order\OrderService;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CreateOrderRequest;
 use App\Models\Client;
 use App\Models\Offer;
 use App\Models\Order;
@@ -18,16 +19,9 @@ class OrderController extends Controller
         $this->orderService = $orderService;
     }
 
-    public function getClientOrders()
+    public function getClientOrders(Request $request)
     {
-        $returnedData = $this->orderService->getClientOrders();
-        return $returnedData;
-    }
-
-    public function ordersRefine(Request $request)
-    {
-        $data = $request->all();
-        $returnedData = $this->orderService->ordersRefine($data);
+        $returnedData = $this->orderService->getClientOrders($request->all());
         return $returnedData;
     }
 
@@ -44,8 +38,16 @@ class OrderController extends Controller
     //     return $returnedData;
     // }
 
-    
-    
+
+    public function store(CreateOrderRequest $request)
+    {
+        $order = $this->orderService->create($request->validated());
+
+        return response()->json([
+            'message' => 'Order created successfully',
+            'data' => $order,
+        ], 201);
+    }
     public function new_policy(Request $request)
     {
         $data = $request->request->all();
@@ -89,7 +91,7 @@ class OrderController extends Controller
 
             if (empty($data['client_id']) || empty($data['api_key'])) {
                 // $logger->error('Error: API Credentials Invalid - ' . json_encode($data));
-                return response()->json( ['message' => 'API Credentials Invalid'], 400);
+                return response()->json(['message' => 'API Credentials Invalid'], 400);
             }
 
             // $data['api_salt'] = $request["api_salt"];
@@ -97,10 +99,10 @@ class OrderController extends Controller
             // Validate API credentials
             if (!empty($data['api_key']) && $data['api_key'] == "LimeLight-wjB2sfm-lE-zWscsA0AFhw-DsAW0Yfqq") {
                 // LimeLight integration, it's ok, skip validation
-            } 
+            }
             // elseif (!$api->validate($data)) {
-                // API creds failed
-                // $logger->error('Error: API Credentials Invalid - ' . json_encode($data));
+            // API creds failed
+            // $logger->error('Error: API Credentials Invalid - ' . json_encode($data));
             //     return response()->json( [ 'message' => 'API Credentials Invalid'], 400);
             // }
 
@@ -269,8 +271,10 @@ class OrderController extends Controller
 
                 if (!empty($client_offer['offer_id'])) {
                     $offer_model->add_offer_to_order(
-                        $client_offer['offer_id'], $policy_id, 
-                        $data['subclient_id']);
+                        $client_offer['offer_id'],
+                        $policy_id,
+                        $data['subclient_id']
+                    );
                     $offer_good = 1;
                 }
             }
@@ -280,9 +284,10 @@ class OrderController extends Controller
 
                 foreach ($offers as $offer) {
                     $offer_model->add_offer_to_order(
-                        $offer['id'], 
-                        $policy_id, 
-                        $data['subclient_id']);
+                        $offer['id'],
+                        $policy_id,
+                        $data['subclient_id']
+                    );
                 }
             }
 

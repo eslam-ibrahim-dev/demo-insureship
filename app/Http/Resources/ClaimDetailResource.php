@@ -42,6 +42,12 @@ class ClaimDetailResource extends JsonResource
                 'extra_info'        => optional($claim?->extraInfo)->toArray(),
                 'comments'          => $claim->comments,
                 'description'       => $claim->description,
+                'address_1'          => $claim->order_address1 ?? null,
+                'address_2'          => $claim->order_address2 ?? null,
+                'city'               => $claim->order_city ?? null,
+                'state'              => $claim->order_state ?? null,
+                'zip'                => $claim->order_zip ?? null,
+                'country'                => $claim->order_country ?? null,
             ],
             'order_info' => [
                 'id'                 => $claim->order->id ?? null,

@@ -36,7 +36,7 @@ class AuthController extends Controller
                     'message' => 'Unauthorized: Invalid username or password.',
                 ], 401);
             }
-            $user = auth('client')->user()->load('permissions', 'client');
+            $user = auth('client')->user()->load('permissions', 'client', 'client.subclients');
 
             return response()->json([
                 'status' => 'success',
@@ -54,6 +54,14 @@ class AuthController extends Controller
                         'referral_id' => $user->client->referral_id,
                         'apikey' => $user->client->apikey,
                         'permissions' => $user->permissions->pluck('module'),
+                        'subclients' => $user->client->subclients->map(function ($sub) {
+                            return [
+                                'id' => $sub->id,
+                                'name' => $sub->name,
+                                'apikey' => $sub->apikey,
+                                'status' => $sub->status,
+                            ];
+                        }),
                     ],
                     'token' => $token,
                     'token_type' => 'bearer',
@@ -80,12 +88,22 @@ class AuthController extends Controller
                 return response()->json(['error' => 'Unauthenticated'], 401);
             }
 
+            $user->load('permissions', 'client', 'client.subclients');
+
             return response()->json([
                 'user' => [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'permissions' => $user->permissions->pluck('module')
+                    'permissions' => $user->permissions->pluck('module'),
+                    'subclients' => $user->client->subclients->map(function ($sub) {
+                        return [
+                            'id'     => $sub->id,
+                            'name'   => $sub->name,
+                            'apikey' => $sub->apikey,
+                            'status' => $sub->status,
+                        ];
+                    }),
                 ]
             ]);
         } catch (\Exception $e) {

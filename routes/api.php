@@ -290,7 +290,6 @@ Route::prefix('clients')->group(function () {
         Route::get('me', [ClientController::class, 'me']);
         Route::controller(ClientOrderController::class)->group(function () {
             Route::get('/orders', 'getClientOrders');
-            Route::get('/orders/search', 'ordersRefine');
             Route::get('/orders/detail/{order_id}', 'orderDetailPage');
             Route::post('/orders/export', 'ordersExportSubmit');
             Route::post('/orders/import',  'importOrders');

@@ -24,7 +24,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class OrderService
 {
-    public function getClientOrders()
+    public function getClientOrders(array $data)
     {
         $user = auth('client')->user();
         $userPermissions = $user->permissions->pluck('module')->toArray();
@@ -37,61 +37,62 @@ class OrderService
         }
 
         // Filter orders for this client
-        $orders = Order::where('client_id', $user->client_id)->paginate(30);
+        $query = Order::query()
+            ->with(['client', 'subclient'])
+            ->where('client_id', $user->client_id);
+        $filterable = array_merge(['id'], (new Order)->getFillable());
+
+        foreach ($filterable as $field) {
+            if (!empty($data[$field])) {
+                if ($field === 'id') {
+                    $query->where(function ($q) use ($data, $field) {
+                        $q->where('id', $data[$field])
+                            ->orWhere('shipping_log_id', $data[$field]);
+                    });
+                } elseif ($field === 'customer_name') {
+                    $query->where('customer_name', 'LIKE', '%' . $data['customer_name'] . '%');
+                } else {
+                    $query->where($field, $data[$field]);
+                }
+            }
+        }
+        if (!empty($data['start_date'])) {
+            $query->where('created', '>=', $data['start_date']);
+        }
+        if (!empty($data['end_date'])) {
+            $query->where('created', '<=', $data['end_date'] . ' 23:59:59');
+        }
+
+        if (empty($data['include_test_entity']) || $data['include_test_entity'] !== true) {
+            $query->whereHas('client', fn($q) => $q->where('is_test_account', '!=', 1))
+                ->whereHas('subclient', fn($q) => $q->where('is_test_account', '!=', 1));
+        }
+
+        if (!empty($data['alevel']) && $data['alevel'] === "Guest Admin" && !empty($data['admin_id'])) {
+            $query->whereIn('client_id', function ($q) use ($data) {
+                $q->select('client_id')
+                    ->from('osis_admin_client')
+                    ->where('admin_id', $data['admin_id']);
+            });
+        }
+
+        $sortField = in_array($data['sort_field'] ?? 'id', $filterable) ? $data['sort_field'] ?? 'id' : 'id';
+        $sortDirection = ($data['sort_direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+        $query->orderBy($sortField, $sortDirection);
+
+        $limit = $data['limit'] ?? 30;
+        $orders = $query->paginate($limit);
 
         return response()->json([
             'status' => 'success',
-            'data' => [
-                'orders' => $orders,
+            'data'   => [
+                'orders'      => $orders,
+                'count'       => $orders->total(),
                 'permissions' => $userPermissions,
             ],
         ]);
     }
 
-    public function ordersRefine($data)
-    {
-        $user = auth('client')->user();
-
-        $userPermissions = $user->permissions->pluck('module')->toArray();
-        if (!in_array('client_search_orders', $userPermissions)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized: Missing permission to view orders.',
-            ], 403);
-        }
-        $data['limit'] = $data['limit'] ?? 30;
-        $data['alevel'] = $user->level;
-        $data['force_client_id'] = true;
-        $data['client_id'] = $user->id;
-
-        $orderModel = new Order();
-        $paginatedOrders = $orderModel->listSearch($data);
-        $orderItems = $paginatedOrders->items();
-
-        $orderIds = array_column($orderItems, 'id');
-
-        $transactions = DB::table('osis_transaction')
-            ->whereIn('order_id', $orderIds)
-            ->orderBy('created', 'DESC')
-            ->get()
-            ->groupBy('order_id');
-
-        foreach ($orderItems as &$order) {
-            $order->transactions = isset($transactions[$order->id])
-                ? $transactions[$order->id]->toArray()
-                : [];
-        }
-
-        return response()->json([
-            'orders' => $orderItems,
-            'meta' => [
-                'total' => $paginatedOrders->total(),
-                'current_page' => $paginatedOrders->currentPage(),
-                'per_page' => $paginatedOrders->perPage(),
-                'last_page' => $paginatedOrders->lastPage(),
-            ],
-        ]);
-    }
     public function ordersExportSubmit($data)
     {
         $user = auth('client')->user();
@@ -190,5 +191,23 @@ class OrderService
         ];
 
         return response()->json($data, 200);
+    }
+
+    public function create(array $data)
+    {
+        $user = auth('client')->user();
+        $userPermissions = $user->permissions->pluck('module')->toArray();
+
+        if (!in_array('client_new_order', $userPermissions)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized: Missing permission to view orders.',
+            ], 403);
+        }
+        $data['currency'] = $data['currency'] ?? 'USD';
+        $data['shipping_country'] = $data['shipping_country'] ?? 'US';
+        $data['billing_country'] = $data['billing_country'] ?? 'US';
+
+        return Order::create($data);
     }
 }
