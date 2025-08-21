@@ -293,6 +293,7 @@ Route::prefix('clients')->group(function () {
             Route::get('/orders/detail/{order_id}', 'orderDetailPage');
             Route::post('/orders/export', 'ordersExportSubmit');
             Route::post('/orders/import',  'importOrders');
+            Route::post('/orders/create',  'store');
         });
         Route::controller(ClientClaimsController::class)->group(function () {
             Route::get('claims',  'getClientClaimsList');
